@@ -1,7 +1,5 @@
 # ClimAlerta — Alertas Climáticos Hiperlocais para Pequenos Produtores Rurais
 
-Projeto desenvolvido para o componente curricular Projeto Integrador IV, do curso de Engenharia de Software da Pontifícia Universidade Católica de Campinas (PUC-Campinas) — 2026.
-
 ## Sobre o projeto
 
 O ClimAlerta é uma aplicação que avisa pequenos produtores rurais sobre riscos climáticos para a sua lavoura antes que eles aconteçam.
@@ -80,7 +78,3 @@ A tela inicial apresenta:
 - Testes automatizados: JUnit 5, Mockito
 - Integrações: INMET / OpenWeather (clima), Firebase Cloud Messaging (push) e Twilio (SMS)
 - Controle de versão: Git, GitHub e GitHub Projects
-
-## Licença
-
-Projeto desenvolvido exclusivamente para fins acadêmicos, no contexto do componente curricular Projeto Integrador IV do curso de Engenharia de Software da PUC-Campinas (2026).
