@@ -1,60 +1,86 @@
-ClimAlerta
+# ClimAlerta — Alertas Climáticos Hiperlocais para Pequenos Produtores Rurais
 
-Alertas climáticos hiperlocais para pequenos produtores rurais, por notificação, voz e SMS.
+Projeto desenvolvido para o componente curricular Projeto Integrador IV, do curso de Engenharia de Software da Pontifícia Universidade Católica de Campinas (PUC-Campinas) — 2026.
 
-Projeto Integrador IV · Engenharia de Software · PUC-Campinas · Entrega final: 26/11/2026
+## Sobre o projeto
 
-# Resumo do projeto
+O ClimAlerta é uma aplicação que avisa pequenos produtores rurais sobre riscos climáticos para a sua lavoura antes que eles aconteçam.
 
-Pequenos produtores rurais perdem parte da safra por eventos climáticos (geada, seca prolongada e chuva forte) que poderiam ser evitados com aviso antecipado. As previsões comuns são genéricas, cheias de jargão e dependem de internet.
+O sistema cruza dados meteorológicos públicos (INMET / OpenWeather) com a localização da propriedade, a cultura plantada e o estágio da lavoura, e transforma a previsão do tempo em um alerta simples, acompanhado de uma recomendação prática.
 
-O ClimAlerta cruza dados meteorológicos públicos (INMET / OpenWeather) com a localização da propriedade, a cultura plantada e o estágio da lavoura. Em vez de só informar a temperatura, avisa o risco real e o que fazer:
+Em vez de apenas informar a temperatura, o sistema avisa o risco real e o que fazer. Exemplo:
 
-Risco de geada (alto) · amanhã, 06:00 Cubra as plantas mais sensíveis com lonas ou plástico agrícola.
+> Risco de geada (alto) — amanhã, 06:00. Cubra as plantas mais sensíveis com lonas ou plástico agrícola.
 
-# O que precisa ser desenvolvido
+Os alertas chegam por notificação, em texto ou voz e, quando a propriedade está sem internet estável, os alertas críticos chegam por SMS. Cada alerta fica registrado em um histórico, com o status do que foi feito.
 
-Servidor (Java + MongoDB)
+## Equipe
 
-Coletar a previsão do tempo automaticamente para cada propriedade
-Motor de alertas: comparar o clima com os limites de risco de cada cultura e estágio
-Gerar o alerta com a recomendação prática
-Autenticação (cadastro e login) e APIs REST de propriedades, alertas e histórico
-Enviar o alerta por push (FCM) e por SMS (Twilio) quando o produtor estiver sem internet
-Gerar o áudio do alerta (voz)
+| Nome | RA |
+|------|----|
+| Caio Ávila Marchi | 25008101 |
+| Caique Vasconcelos Naimi | 25004208 |
+| Rafael Mendes Valente | 25002875 |
+| Rodrigo Gabi | 25001714 |
+| Vinicius Santuci Virgolino | 25000294 |
 
-App mobile (Flutter), 10 telas
+## Funcionalidades
 
-Splash, login e cadastro da propriedade (com GPS)
-Dashboard com o clima de hoje e os próximos alertas
-Lista de alertas com filtros (Todos, Geada, Seca, Chuva) e detalhe com recomendação
-Histórico de alertas com status (Em andamento, Ação realizada, Resolvido)
-Perfil e configurações (canais de alerta e modo offline/SMS)
-Tela de modo offline
+### Conta e propriedade
 
-Banco de dados (MongoDB)
+- Cadastro e login do produtor, com recuperação de senha
+- Cadastro da propriedade com nome, tipo de cultivo, tamanho da área (opcional) e localização, por GPS automático ou informada manualmente
+- Edição dos dados da propriedade e das preferências de recebimento de alertas
 
-Coleções: usuarios, propriedades, leituras_clima e alertas
-Índice geoespacial (2dsphere) para a localização das propriedades
-Índices de performance e carga inicial de culturas e limites de risco
+### Alertas de risco climático
 
-Testes (JUnit)
+- Coleta automática da previsão do tempo para a localização de cada propriedade
+- Detecção de três tipos de evento: geada, seca prolongada e chuva forte
+- Classificação do alerta por nível de risco (Médio, Alto), conforme a cultura e o estágio da lavoura (plantio, crescimento, floração, colheita)
+- Prevenção de alertas duplicados, priorizando o mais grave
 
-Motor de alertas, serviços, repositórios e endpoints REST
-Tecnologias
-Parte	Tecnologia
-Servidor	Java 21 + Spring Boot
-Banco de dados	MongoDB
-App	Flutter
-Testes	JUnit 5 + Mockito
-Clima	INMET / OpenWeather
-Push	Firebase Cloud Messaging
-SMS	Twilio
+### Recomendações práticas
 
-# Integrantes
-Nome	RA
-Caio Ávila Marchi	25008101
-Caique Vasconcelos Naimi	25004208
-Rafael Mendes Valente	25002875
-Rodrigo Gabi	25001714
-Vinicius Santuci Virgolino	25000294
+- Cada alerta vem com uma ação sugerida e dicas extras (ex.: "proteja as mudas", "adie a irrigação")
+- Linguagem simples, sem jargão técnico
+
+### Canais de alerta
+
+- Notificação push no aplicativo
+- Texto e voz: o produtor escolhe receber o alerta escrito e/ou em áudio
+- Modo offline / SMS: sem internet estável, os alertas críticos chegam por SMS
+
+### Histórico e acompanhamento
+
+- Lista de alertas recebidos, agrupada por mês
+- Status de cada alerta: Em andamento, Ação realizada e Resolvido
+- Filtro de alertas por tipo: Todos, Geada, Seca e Chuva
+
+### Dashboard
+
+A tela inicial apresenta:
+
+- Clima de hoje da propriedade
+- Alerta em destaque
+- Próximos alertas previstos
+
+## Status acompanhados
+
+| Status | Descrição |
+|--------|-----------|
+| Em andamento | Alerta recebido e situação ainda em curso |
+| Ação realizada | Produtor executou a ação recomendada |
+| Resolvido | Risco encerrado |
+
+## Tecnologias utilizadas
+
+- Aplicativo (cliente): Flutter (Dart)
+- Servidor: Java 21, Spring Boot (API REST)
+- Banco de dados: MongoDB
+- Testes automatizados: JUnit 5, Mockito
+- Integrações: INMET / OpenWeather (clima), Firebase Cloud Messaging (push) e Twilio (SMS)
+- Controle de versão: Git, GitHub e GitHub Projects
+
+## Licença
+
+Projeto desenvolvido exclusivamente para fins acadêmicos, no contexto do componente curricular Projeto Integrador IV do curso de Engenharia de Software da PUC-Campinas (2026).
