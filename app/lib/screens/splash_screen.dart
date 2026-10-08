@@ -6,6 +6,7 @@
 // "Começar" (cadastro da propriedade) e o link "Já tenho uma conta" (login)
 
 import 'package:flutter/material.dart';
+import 'login_screen.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -102,7 +103,15 @@ class SplashScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     TextButton(
+                      // Navigator.push coloca a tela de login por cima da
+                      // splash. O botão de voltar retorna para a splash.
                       onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                        );
                       },
                       child: const Text(
                         'Já tenho uma conta',
