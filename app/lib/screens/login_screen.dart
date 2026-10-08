@@ -1,5 +1,5 @@
 // Rafael Mendes Valente - 25002875
-// Data: 07/10/26
+// Data: 08/10/26
 // Horário: 00h00 - 06h00
 // Descrição: Tela de login do aplicativo ClimAlerta. Contém os campos de
 // e-mail/telefone e senha (com opção de mostrar/ocultar a senha), o link
