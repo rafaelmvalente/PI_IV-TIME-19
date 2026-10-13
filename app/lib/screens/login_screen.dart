@@ -7,6 +7,8 @@
 
 import 'package:flutter/material.dart';
 
+import 'cadastro_propriedade_screen.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -40,6 +42,10 @@ class _LoginScreenState extends State<LoginScreen> {
     // validate() executa o "validator" de cada campo e retorna false se
     // algum deles devolver uma mensagem de erro
     if (_formKey.currentState!.validate()) {
+      // Após o login, o usuário segue para o cadastro da propriedade
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const CadastroPropriedadeScreen()),
+      );
     }
   }
 
