@@ -3,6 +3,8 @@
 // Descrição: Modelo da propriedade rural cadastrada pelo produtor e os tipos
 // de cultivo aceitos pelo app.
 
+import 'coordenada.dart';
+
 enum TipoCultivo {
   milho('Milho'),
   feijao('Feijão'),
@@ -21,11 +23,13 @@ class Propriedade {
   const Propriedade({
     required this.nome,
     required this.cultivo,
+    required this.localizacao,
     this.areaHectares,
   });
 
   final String nome;
   final TipoCultivo cultivo;
+  final Coordenada localizacao;
   final double? areaHectares;
 
   /// Formato usado para gravar no Firestore.
@@ -33,6 +37,8 @@ class Propriedade {
     return {
       'nome': nome,
       'cultivo': cultivo.name,
+      'latitude': localizacao.latitude,
+      'longitude': localizacao.longitude,
       'areaHectares': areaHectares,
     };
   }
