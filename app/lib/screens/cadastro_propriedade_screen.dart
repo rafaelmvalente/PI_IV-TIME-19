@@ -2,19 +2,27 @@
 // Data: 13/10/26
 // Horário:
 // Descrição: Tela de cadastro da propriedade do ClimAlerta. Contém os campos
-// de nome da propriedade, tipo de cultivo e tamanho da área (opcional), a
-// ilustração da paisagem rural e o botão "Salvar". Ao salvar, devolve a
-// Propriedade preenchida para a tela anterior.
+// de nome da propriedade, tipo de cultivo, tamanho da área (opcional) e a
+// localização obtida pelo GPS, a ilustração da paisagem rural e o botão
+// "Salvar". Ao salvar, devolve a Propriedade preenchida para a tela anterior.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/coordenada.dart';
 import '../models/propriedade.dart';
+import '../services/localizacao_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/paisagem_rural.dart';
+import '../widgets/seletor_localizacao.dart';
 
 class CadastroPropriedadeScreen extends StatefulWidget {
-  const CadastroPropriedadeScreen({super.key});
+  const CadastroPropriedadeScreen({
+    super.key,
+    this.localizacaoService = const LocalizacaoService(),
+  });
+
+  final LocalizacaoService localizacaoService;
 
   @override
   State<CadastroPropriedadeScreen> createState() =>
@@ -28,8 +36,11 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nomeController = TextEditingController();
   final _areaController = TextEditingController();
+  final _localizacaoKey = GlobalKey<FormFieldState<Coordenada>>();
 
   TipoCultivo? _cultivo;
+  bool _buscandoLocalizacao = false;
+  String? _erroLocalizacao;
 
   @override
   void dispose() {
@@ -59,9 +70,39 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
     return null;
   }
 
+  String? _validarLocalizacao(Coordenada? valor) {
+    return valor == null ? 'Registre a localização da propriedade' : null;
+  }
+
   double? _converterArea(String texto) {
     if (texto.trim().isEmpty) return null;
     return double.tryParse(texto.trim().replaceAll(',', '.'));
+  }
+
+  Future<void> _buscarLocalizacao(FormFieldState<Coordenada> campo) async {
+    setState(() {
+      _buscandoLocalizacao = true;
+      _erroLocalizacao = null;
+    });
+
+    try {
+      final coordenada =
+          await widget.localizacaoService.obterLocalizacaoAtual();
+      if (!mounted) return;
+      campo.didChange(coordenada);
+      campo.validate();
+    } on LocalizacaoException catch (erro) {
+      if (!mounted) return;
+      setState(() => _erroLocalizacao = erro.mensagem);
+    } on Exception {
+      if (!mounted) return;
+      setState(() {
+        _erroLocalizacao = 'Não foi possível obter a localização. '
+            'Tente novamente.';
+      });
+    } finally {
+      if (mounted) setState(() => _buscandoLocalizacao = false);
+    }
   }
 
   void _salvar() {
@@ -71,6 +112,7 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
     final propriedade = Propriedade(
       nome: _nomeController.text.trim(),
       cultivo: _cultivo!,
+      localizacao: _localizacaoKey.currentState!.value!,
       areaHectares: _converterArea(_areaController.text),
     );
 
@@ -163,6 +205,20 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
                           suffixText: 'ha',
                         ),
                         validator: _validarArea,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _CampoComRotulo(
+                      rotulo: 'Localização da propriedade',
+                      child: FormField<Coordenada>(
+                        key: _localizacaoKey,
+                        validator: _validarLocalizacao,
+                        builder: (campo) => SeletorLocalizacao(
+                          localizacao: campo.value,
+                          carregando: _buscandoLocalizacao,
+                          mensagemErro: _erroLocalizacao ?? campo.errorText,
+                          onBuscar: () => _buscarLocalizacao(campo),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 32),
