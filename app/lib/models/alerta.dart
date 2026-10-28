@@ -1,4 +1,5 @@
-// Estrutura criada em 28/10/26 — implementação pendente (responsável: a definir)
+// Caique Vasconcelos Naimi - 25004208
+// Data: 28/10/2026
 // Descrição: Alerta de risco climático recebido pelo produtor. Os tipos,
 // níveis e status seguem o README e o relatório de ideação.
 
@@ -40,6 +41,7 @@ class Alerta {
     required this.tipo,
     required this.nivel,
     required this.previstoPara,
+    required this.descricao,
     required this.status,
     required this.recomendacao,
   });
@@ -49,6 +51,8 @@ class Alerta {
   final TipoAlerta tipo;
   final NivelRisco nivel;
   final DateTime previstoPara;
+  // Explicação do risco em linguagem simples (ex.: "A temperatura pode cair para 2°C").
+  final String descricao;
   final StatusAlerta status;
   final Recomendacao recomendacao;
 
