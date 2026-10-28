@@ -3,13 +3,15 @@
 // Horário:
 // Descrição: Tela de cadastro da propriedade do ClimAlerta. Contém os campos
 // de nome da propriedade, tipo de cultivo, tamanho da área (opcional) e a
-// localização obtida pelo GPS, a ilustração da paisagem rural e o botão
-// "Salvar". Ao salvar, devolve a Propriedade preenchida para a tela anterior.
+// localização (pelo GPS ou informada manualmente), o estágio da lavoura, a
+// ilustração da paisagem rural e o botão "Salvar". Ao salvar, devolve a
+// Propriedade preenchida para a tela anterior.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/coordenada.dart';
+import '../models/estagio_lavoura.dart';
 import '../models/propriedade.dart';
 import '../services/localizacao_service.dart';
 import '../theme/app_colors.dart';
@@ -35,9 +37,17 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nomeController = TextEditingController();
   final _areaController = TextEditingController();
+  final _latitudeController = TextEditingController();
+  final _longitudeController = TextEditingController();
   final _localizacaoKey = GlobalKey<FormFieldState<Coordenada>>();
 
   TipoCultivo? _cultivo;
+  EstagioLavoura? _estagio;
+  // false = localização pelo GPS; true = latitude e longitude digitadas.
+  bool _localizacaoManual = false;
+  // Guarda a última localização do GPS para não perdê-la quando o produtor
+  // alterna entre "Usar GPS" e "Manualmente".
+  Coordenada? _coordenadaGps;
   bool _buscandoLocalizacao = false;
   String? _erroLocalizacao;
 
@@ -45,6 +55,8 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
   void dispose() {
     _nomeController.dispose();
     _areaController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
     super.dispose();
   }
 
@@ -61,10 +73,14 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
     return valor == null ? 'Selecione o tipo de cultivo' : null;
   }
 
+  String? _validarEstagio(EstagioLavoura? valor) {
+    return valor == null ? 'Selecione o estágio da lavoura' : null;
+  }
+
   String? _validarArea(String? valor) {
     final texto = valor?.trim() ?? '';
     if (texto.isEmpty) return null;
-    final area = _converterArea(texto);
+    final area = _converterNumero(texto);
     if (area == null || area <= 0) return 'Informe uma área válida';
     return null;
   }
@@ -73,7 +89,22 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
     return valor == null ? 'Registre a localização da propriedade' : null;
   }
 
-  double? _converterArea(String texto) {
+  String? _validarLatitude(String? valor) {
+    final grau = _converterNumero(valor ?? '');
+    if (grau == null) return 'Informe a latitude (ex.: -22,90990)';
+    if (grau < -90 || grau > 90) return 'A latitude fica entre -90 e 90';
+    return null;
+  }
+
+  String? _validarLongitude(String? valor) {
+    final grau = _converterNumero(valor ?? '');
+    if (grau == null) return 'Informe a longitude (ex.: -47,06260)';
+    if (grau < -180 || grau > 180) return 'A longitude fica entre -180 e 180';
+    return null;
+  }
+
+  // Aceita vírgula ou ponto como separador decimal ("5,5" ou "5.5").
+  double? _converterNumero(String texto) {
     if (texto.trim().isEmpty) return null;
     return double.tryParse(texto.trim().replaceAll(',', '.'));
   }
@@ -88,6 +119,7 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
       final coordenada = await widget.localizacaoService
           .obterLocalizacaoAtual();
       if (!mounted) return;
+      _coordenadaGps = coordenada;
       campo.didChange(coordenada);
       campo.validate();
     } on LocalizacaoException catch (erro) {
@@ -109,11 +141,21 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
+    // No modo manual os campos já foram validados pelo Form, então a
+    // conversão abaixo não falha.
+    final localizacao = _localizacaoManual
+        ? Coordenada(
+            latitude: _converterNumero(_latitudeController.text)!,
+            longitude: _converterNumero(_longitudeController.text)!,
+          )
+        : _localizacaoKey.currentState!.value!;
+
     final propriedade = Propriedade(
       nome: _nomeController.text.trim(),
       cultivo: _cultivo!,
-      localizacao: _localizacaoKey.currentState!.value!,
-      areaHectares: _converterArea(_areaController.text),
+      estagio: _estagio!,
+      localizacao: localizacao,
+      areaHectares: _converterNumero(_areaController.text),
     );
 
     Navigator.of(context).pop(propriedade);
@@ -210,6 +252,28 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
                                 ),
                                 const SizedBox(height: 20),
                                 _CampoComRotulo(
+                                  rotulo: 'Estágio da lavoura',
+                                  child: DropdownButtonFormField<EstagioLavoura>(
+                                    initialValue: _estagio,
+                                    hint: const Text(
+                                      'Selecione o estágio da lavoura',
+                                    ),
+                                    icon: const Icon(Icons.keyboard_arrow_down),
+                                    decoration: _decoracao(null),
+                                    items: [
+                                      for (final estagio in EstagioLavoura.values)
+                                        DropdownMenuItem(
+                                          value: estagio,
+                                          child: Text(estagio.rotulo),
+                                        ),
+                                    ],
+                                    onChanged: (valor) =>
+                                        setState(() => _estagio = valor),
+                                    validator: _validarEstagio,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                _CampoComRotulo(
                                   rotulo: 'Tamanho da área',
                                   complemento: '(opcional)',
                                   child: TextFormField(
@@ -233,16 +297,30 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
                                 const SizedBox(height: 20),
                                 _CampoComRotulo(
                                   rotulo: 'Localização da propriedade',
-                                  child: FormField<Coordenada>(
-                                    key: _localizacaoKey,
-                                    validator: _validarLocalizacao,
-                                    builder: (campo) => SeletorLocalizacao(
-                                      localizacao: campo.value,
-                                      carregando: _buscandoLocalizacao,
-                                      mensagemErro:
-                                          _erroLocalizacao ?? campo.errorText,
-                                      onBuscar: () => _buscarLocalizacao(campo),
-                                    ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      _buildSeletorModo(),
+                                      const SizedBox(height: 12),
+                                      if (_localizacaoManual)
+                                        _buildLocalizacaoManual()
+                                      else
+                                        FormField<Coordenada>(
+                                          key: _localizacaoKey,
+                                          initialValue: _coordenadaGps,
+                                          validator: _validarLocalizacao,
+                                          builder: (campo) => SeletorLocalizacao(
+                                            localizacao: campo.value,
+                                            carregando: _buscandoLocalizacao,
+                                            mensagemErro:
+                                                _erroLocalizacao ??
+                                                campo.errorText,
+                                            onBuscar: () =>
+                                                _buscarLocalizacao(campo),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(height: 32),
@@ -285,6 +363,92 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  // Botão de duas opções: pegar a localização pelo GPS ou digitar à mão.
+  Widget _buildSeletorModo() {
+    return SegmentedButton<bool>(
+      segments: const [
+        ButtonSegment(
+          value: false,
+          icon: Icon(Icons.my_location),
+          label: Text('Usar GPS'),
+        ),
+        ButtonSegment(
+          value: true,
+          icon: Icon(Icons.edit_location_alt_outlined),
+          label: Text('Manualmente'),
+        ),
+      ],
+      selected: {_localizacaoManual},
+      showSelectedIcon: false,
+      style: SegmentedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.textoSecundario,
+        selectedBackgroundColor: AppColors.morroClaro,
+        selectedForegroundColor: AppColors.verde,
+        side: const BorderSide(color: AppColors.borda),
+      ),
+      onSelectionChanged: (selecao) => setState(() {
+        _localizacaoManual = selecao.first;
+        _erroLocalizacao = null;
+      }),
+    );
+  }
+
+  // Latitude e longitude digitadas, para quem está sem GPS ou sem sinal.
+  Widget _buildLocalizacaoManual() {
+    // Só permite dígitos, vírgula, ponto e o sinal de menos.
+    final formatadores = <TextInputFormatter>[
+      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,\-]')),
+      LengthLimitingTextInputFormatter(12),
+    ];
+    const teclado = TextInputType.numberWithOptions(
+      decimal: true,
+      signed: true,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _latitudeController,
+                keyboardType: teclado,
+                textInputAction: TextInputAction.next,
+                inputFormatters: formatadores,
+                decoration: _decoracao(
+                  '-22,90990',
+                ).copyWith(labelText: 'Latitude', errorMaxLines: 3),
+                validator: _validarLatitude,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextFormField(
+                controller: _longitudeController,
+                keyboardType: teclado,
+                textInputAction: TextInputAction.done,
+                inputFormatters: formatadores,
+                decoration: _decoracao(
+                  '-47,06260',
+                ).copyWith(labelText: 'Longitude', errorMaxLines: 3),
+                validator: _validarLongitude,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Dica: no Google Maps, toque e segure sobre a propriedade para '
+          'ver a latitude e a longitude.',
+          style: TextStyle(fontSize: 12, color: AppColors.textoSecundario),
+        ),
+      ],
     );
   }
 
