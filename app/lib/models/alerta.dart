@@ -40,6 +40,7 @@ class Alerta {
     required this.tipo,
     required this.nivel,
     required this.previstoPara,
+    required this.descricao,
     required this.status,
     required this.recomendacao,
   });
@@ -49,6 +50,8 @@ class Alerta {
   final TipoAlerta tipo;
   final NivelRisco nivel;
   final DateTime previstoPara;
+  // Explicação do risco em linguagem simples (ex.: "A temperatura pode cair para 2°C").
+  final String descricao;
   final StatusAlerta status;
   final Recomendacao recomendacao;
 
