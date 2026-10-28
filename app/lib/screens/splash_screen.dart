@@ -92,8 +92,9 @@ class SplashScreen extends StatelessWidget {
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
-                              builder: (_) =>
-                                  DashboardScreen(propriedade: propriedade),
+                              builder: (_) => DashboardScreen(
+                                propriedade: propriedade,
+                              ),
                             ),
                           );
                         },
