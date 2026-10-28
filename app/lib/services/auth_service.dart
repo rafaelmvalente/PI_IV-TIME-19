@@ -1,33 +1,40 @@
-// Estrutura criada em 28/10/26 — implementação pendente (responsável: a definir)
-// Descrição: Login, criação de conta, recuperação de senha e sessão do
-// produtor, consumindo o backend (endpoints a definir, P010).
+// Data: 28/10/2026
+// Descrição: Contas do produtor usadas pelo login e pela criação de conta.
+// Enquanto o backend não existe (P010), as contas ficam só na memória do app.
 
-import '../models/usuario.dart';
+class Conta {
+  final String login;
+  final String senha;
+  bool temPropriedade;
+
+  Conta({
+    required this.login,
+    required this.senha,
+    this.temPropriedade = false,
+  });
+}
 
 class AuthService {
-  const AuthService();
+  // shortcut: contas em memória somem ao fechar o app; trocar pela chamada ao backend (P010).
+  static final Map<String, Conta> _contas = {};
 
-  // TODO(P020): enviar login/senha ao backend e guardar o token (flutter_secure_storage).
-  Future<Usuario> entrar(String login, String senha) {
-    throw UnimplementedError('P020: login ainda não implementado');
+  // Retorna false se já existir uma conta com esse e-mail ou telefone.
+  static bool criarConta(String login, String senha) {
+    final chave = login.trim().toLowerCase();
+    if (_contas.containsKey(chave)) return false;
+
+    _contas[chave] = Conta(login: login.trim(), senha: senha);
+    return true;
   }
 
-  // TODO(P025): enviar os dados da nova conta ao backend.
-  Future<Usuario> criarConta({
-    required String nome,
-    required String login,
-    required String senha,
-  }) {
-    throw UnimplementedError('P025: criação de conta ainda não implementada');
+  // Retorna a conta se o login e a senha conferirem; caso contrário, null.
+  static Conta? entrar(String login, String senha) {
+    final conta = _contas[login.trim().toLowerCase()];
+    if (conta == null || conta.senha != senha) return null;
+    return conta;
   }
 
-  // TODO(P039): pedir ao backend a recuperação de senha.
-  Future<void> recuperarSenha(String login) {
-    throw UnimplementedError('P039: recuperação de senha não implementada');
-  }
-
-  // TODO(P020): apagar o token salvo.
-  Future<void> sair() {
-    throw UnimplementedError('P020: logout ainda não implementado');
+  static void marcarPropriedadeCadastrada(Conta conta) {
+    conta.temPropriedade = true;
   }
 }
