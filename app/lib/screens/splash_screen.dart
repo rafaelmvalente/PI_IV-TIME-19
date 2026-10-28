@@ -6,6 +6,8 @@
 // "Começar" (cadastro da propriedade) e o link "Já tenho uma conta" (login)
 
 import 'package:flutter/material.dart';
+import 'cadastro_propriedade_screen.dart';
+import 'dashboard_screen.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatelessWidget {
@@ -88,7 +90,31 @@ class SplashScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: () {
+                        // O async/await faz o app esperar o usuário terminar
+                        // o cadastro. A tela de cadastro devolve a
+                        // Propriedade no pop; se o usuário voltar sem salvar,
+                        // o resultado é null e nada acontece.
+                        onPressed: () async {
+                          final propriedade = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CadastroPropriedadeScreen(),
+                            ),
+                          );
+                          // context.mounted confere se a tela ainda existe
+                          // depois da espera, antes de usar o context.
+                          if (propriedade == null || !context.mounted) return;
+                          // pushReplacement troca a splash pelo dashboard,
+                          // então o botão voltar não retorna para ela.
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              // Envia a propriedade cadastrada para o
+                              // dashboard mostrar o nome dela.
+                              builder: (_) =>
+                                  DashboardScreen(propriedade: propriedade),
+                            ),
+                          );
                         },
                         child: const Text(
                           'Começar',
@@ -112,7 +138,7 @@ class SplashScreen extends StatelessWidget {
                         );
                       },
                       child: const Text(
-                        'Já tenho uma conta',
+                        'Criar conta / Já tenho uma conta',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 14,
