@@ -1,3 +1,4 @@
+// Caique Vasconcelos Naimi - 25004208
 // Data: 28/10/2026
 // Descrição: Tela 7 do relatório — orientação detalhada de como agir diante
 // do risco do alerta: ação principal, como fazer e dicas extras.
@@ -60,6 +61,7 @@ class RecomendacoesScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
+                        // "Entendi" fecha esta tela e volta para o detalhe.
                         onPressed: () => Navigator.of(context).pop(),
                         child: const Text(
                           'Entendi',
@@ -113,6 +115,8 @@ class RecomendacoesScreen extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
+          // "if" dentro da lista: o texto e as dicas só aparecem quando
+          // existem, sem deixar espaço vazio na tela.
           if (recomendacao.detalhe.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
@@ -158,6 +162,7 @@ class RecomendacoesScreen extends StatelessWidget {
               ),
             ],
           ),
+          // Uma linha com check para cada dica recebida.
           for (final dica in recomendacao.dicas)
             Padding(
               padding: const EdgeInsets.only(top: 10),

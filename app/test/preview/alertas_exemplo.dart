@@ -1,3 +1,4 @@
+// Caique Vasconcelos Naimi - 25004208
 // Data: 28/10/2026
 // Descrição: Alertas de exemplo (iguais aos do protótipo) usados só nos testes
 // e na prévia. Não são usados pelo app.

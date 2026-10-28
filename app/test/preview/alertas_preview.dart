@@ -1,3 +1,4 @@
+// Caique Vasconcelos Naimi - 25004208
 // Data: 28/10/2026
 // Descrição: Prévia das telas 5, 6 e 7 com alertas de exemplo, para ver as
 // telas sem o backend. Rodar com: flutter run -t test/preview/alertas_preview.dart

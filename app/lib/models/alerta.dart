@@ -1,4 +1,5 @@
-// Estrutura criada em 28/10/26 — implementação pendente (responsável: a definir)
+// Caique Vasconcelos Naimi - 25004208
+// Data: 28/10/2026
 // Descrição: Alerta de risco climático recebido pelo produtor. Os tipos,
 // níveis e status seguem o README e o relatório de ideação.
 

@@ -1,3 +1,4 @@
+// Caique Vasconcelos Naimi - 25004208
 // Data: 28/10/2026
 // Descrição: Tela 6 do relatório — detalhe do alerta: risco, nível de
 // severidade, explicação e a ação prática sugerida. Pelo menu "..." o produtor
@@ -29,14 +30,20 @@ class DetalheAlertaScreen extends StatefulWidget {
 }
 
 class _DetalheAlertaScreenState extends State<DetalheAlertaScreen> {
+  // Cópia local do alerta: quando o status muda, a tela troca este valor e
+  // se redesenha sem precisar ser aberta de novo.
   late Alerta _alerta = widget.alerta;
 
   Future<void> _mudarStatus(StatusAlerta status) async {
-    final salvar = widget.atualizarStatus ??
+    final salvar =
+        widget.atualizarStatus ??
         (s) => const AlertaService().atualizarStatus(_alerta.id, s);
 
+    // try/catch: se o salvamento falhar (hoje sempre falha, pois não há
+    // backend), o produtor vê uma mensagem em vez de o app travar.
     try {
       final atualizado = await Future.sync(() => salvar(status));
+      // "mounted" confere se a tela ainda está aberta depois da espera.
       if (!mounted) return;
       setState(() => _alerta = atualizado);
       _mostrarMensagem('Status atualizado: ${atualizado.status.rotulo}');
@@ -47,9 +54,7 @@ class _DetalheAlertaScreenState extends State<DetalheAlertaScreen> {
   }
 
   void _mostrarMensagem(String texto) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(texto)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
   }
 
   @override
@@ -68,6 +73,8 @@ class _DetalheAlertaScreenState extends State<DetalheAlertaScreen> {
                     children: [
                       const BackButton(),
                       const Spacer(),
+                      // Menu "..." do protótipo: lista os status e marca com
+                      // um check o status atual do alerta.
                       PopupMenuButton<StatusAlerta>(
                         icon: const Icon(Icons.more_horiz),
                         tooltip: 'Marcar status do alerta',
@@ -237,6 +244,8 @@ class _DetalheAlertaScreenState extends State<DetalheAlertaScreen> {
                   ),
                 ),
                 const SizedBox(height: 6),
+                // Junta a ação e o detalhe numa frase só, como no protótipo
+                // ("Proteja as mudas. Cubra as plantas...").
                 Text(
                   [
                     _alerta.recomendacao.acao,
@@ -264,6 +273,8 @@ class _SeloNivel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // O switch devolve as duas cores de uma vez: risco alto em vermelho e
+    // médio em amarelo.
     final (fundo, texto) = switch (nivel) {
       NivelRisco.alto => (const Color(0xFFFDE2E2), const Color(0xFFC62828)),
       NivelRisco.medio => (const Color(0xFFFFF1CC), const Color(0xFF8A5300)),

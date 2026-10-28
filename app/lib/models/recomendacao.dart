@@ -1,4 +1,5 @@
-// Estrutura criada em 28/10/26 — implementação pendente (responsável: a definir)
+// Caique Vasconcelos Naimi - 25004208
+// Data: 28/10/2026
 // Descrição: Ação prática sugerida para um alerta (ex.: "Proteja as mudas"),
 // com dicas extras em linguagem simples.
 

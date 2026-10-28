@@ -1,3 +1,4 @@
+// Caique Vasconcelos Naimi - 25004208
 // Data: 28/10/2026
 // Descrição: Tela 5 do relatório — lista de todos os alertas recebidos, com
 // filtro por tipo (Todos, Geada, Seca, Chuva). Tocar em um alerta abre o detalhe.
@@ -9,6 +10,8 @@ import '../theme/app_colors.dart';
 import '../widgets/alerta_visual.dart';
 import 'detalhe_alerta_screen.dart';
 
+// StatefulWidget porque a tela muda enquanto está aberta: o filtro escolhido
+// e o resultado do carregamento dos alertas.
 class AlertasScreen extends StatefulWidget {
   // Quem abre a tela decide de onde vêm os alertas. Hoje é o AlertaService,
   // que ainda depende do backend (TODO(P010)).
@@ -21,6 +24,8 @@ class AlertasScreen extends StatefulWidget {
 }
 
 class _AlertasScreenState extends State<AlertasScreen> {
+  // Cada filtro é um par (tipo, texto do botão). O tipo null significa
+  // "Todos", ou seja, nenhum filtro aplicado.
   static const _filtros = <(TipoAlerta?, String)>[
     (null, 'Todos'),
     (TipoAlerta.geada, 'Geada'),
@@ -28,6 +33,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
     (TipoAlerta.chuvaForte, 'Chuva'),
   ];
 
+  // "late" avisa que a variável recebe valor depois (no initState), mas
+  // antes de ser usada.
   late Future<List<Alerta>> _alertas;
   TipoAlerta? _filtro;
 
@@ -58,6 +65,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
                 children: [
                   Row(
                     children: [
+                      // A seta só aparece se houver uma tela para voltar.
+                      // Quando a tela for uma aba da navegação, ela some.
                       if (Navigator.of(context).canPop()) const BackButton(),
                       const Text(
                         'Alertas',
@@ -83,6 +92,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
   }
 
   Widget _buildFiltros() {
+    // Rolagem horizontal para os filtros não estourarem em telas estreitas.
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -90,6 +100,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
           for (final (tipo, rotulo) in _filtros)
             Padding(
               padding: const EdgeInsets.only(right: 8),
+              // ChoiceChip é o botão em formato de pílula do protótipo; o
+              // selecionado fica verde com texto branco.
               child: ChoiceChip(
                 label: Text(rotulo),
                 selected: _filtro == tipo,
@@ -112,6 +124,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
   }
 
   Widget _buildLista() {
+    // FutureBuilder redesenha a lista conforme o carregamento anda:
+    // carregando -> erro ou dados. Cada caso tem sua própria tela.
     return FutureBuilder<List<Alerta>>(
       future: _alertas,
       builder: (context, snapshot) {
@@ -124,13 +138,15 @@ class _AlertasScreenState extends State<AlertasScreen> {
         if (snapshot.hasError) {
           return _Mensagem(
             icone: Icons.cloud_off,
-            texto: 'Não foi possível carregar os alertas.\n'
+            texto:
+                'Não foi possível carregar os alertas.\n'
                 'Verifique sua conexão e tente de novo.',
             botao: 'Tentar de novo',
             aoTocar: () => setState(_carregar),
           );
         }
 
+        // O filtro é aplicado nos alertas já carregados, sem buscar de novo.
         final alertas = snapshot.data!
             .where((a) => _filtro == null || a.tipo == _filtro)
             .toList();
@@ -144,6 +160,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
           );
         }
 
+        // ListView.separated monta só os itens visíveis e coloca um espaço
+        // entre um cartão e outro.
         return ListView.separated(
           padding: const EdgeInsets.only(bottom: 20),
           itemCount: alertas.length,
@@ -162,6 +180,8 @@ class _CartaoAlerta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Material + InkWell: o cartão inteiro vira clicável e mostra o efeito
+    // de toque (ondulação) por cima do fundo branco.
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(14),
