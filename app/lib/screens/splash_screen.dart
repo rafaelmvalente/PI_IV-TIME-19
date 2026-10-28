@@ -6,6 +6,8 @@
 // "Começar" (cadastro da propriedade) e o link "Já tenho uma conta" (login)
 
 import 'package:flutter/material.dart';
+import 'cadastro_propriedade_screen.dart';
+import 'dashboard_screen.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatelessWidget {
@@ -13,8 +15,6 @@ class SplashScreen extends StatelessWidget {
 
   // Cores usadas na tela
   static const Color _verdeBotao = Color(0xFF1E7B58);
-  static const Color _verdeFolha = Color(0xFF6FBF73);
-  static const Color _amareloSol = Color(0xFFF2C94C);
 
   @override
   Widget build(BuildContext context) {
@@ -28,17 +28,17 @@ class SplashScreen extends StatelessWidget {
           child: Container(
             width: double.infinity,
             height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF5C7F96),
-                  Color(0xFFC9A27A),
-                  Color(0xFF4F6B3A),
-                  Color(0xFF1F3320),
-                ],
-                stops: [0.0, 0.45, 0.7, 1.0],
+            // BoxFit.cover preenche a tela inteira sem distorcer a foto.
+            // O colorFilter escurece a imagem para o texto branco ficar
+            // legível sobre o céu claro
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: const AssetImage('assets/images/foto.Squash.jpg'),
+                fit: BoxFit.cover,
+                colorFilter: ColorFilter.mode(
+                  Colors.black.withAlpha(90),
+                  BlendMode.darken,
+                ),
               ),
             ),
             // SafeArea evita que o conteúdo fique embaixo da
@@ -51,9 +51,9 @@ class SplashScreen extends StatelessWidget {
                     // Os Spacers dividem o espaço livre da tela de forma
                     // proporcional. Assim o logo fica na
                     // parte de cima e os botões na parte de baixo
-                    const Spacer(flex: 3),
+                    const Spacer(flex: 2),
                     _buildLogo(),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     const Text(
                       'ClimAlerta',
                       style: TextStyle(
@@ -63,7 +63,7 @@ class SplashScreen extends StatelessWidget {
                         letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 6),
                     Text(
                       'Alertas climáticos hiperlocais\npara pequenos produtores rurais',
                       textAlign: TextAlign.center,
@@ -75,7 +75,7 @@ class SplashScreen extends StatelessWidget {
                         height: 1.4,
                       ),
                     ),
-                    const Spacer(flex: 4),
+                    const Spacer(flex: 5),
                     // Botão principal. O SizedBox com width: double.infinity
                     // faz o botão ocupar toda a largura disponível.
                     SizedBox(
@@ -90,7 +90,31 @@ class SplashScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: () {
+                        // O async/await faz o app esperar o usuário terminar
+                        // o cadastro. A tela de cadastro devolve a
+                        // Propriedade no pop; se o usuário voltar sem salvar,
+                        // o resultado é null e nada acontece.
+                        onPressed: () async {
+                          final propriedade = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CadastroPropriedadeScreen(),
+                            ),
+                          );
+                          // context.mounted confere se a tela ainda existe
+                          // depois da espera, antes de usar o context.
+                          if (propriedade == null || !context.mounted) return;
+                          // pushReplacement troca a splash pelo dashboard,
+                          // então o botão voltar não retorna para ela.
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              // Envia a propriedade cadastrada para o
+                              // dashboard mostrar o nome dela.
+                              builder: (_) =>
+                                  DashboardScreen(propriedade: propriedade),
+                            ),
+                          );
                         },
                         child: const Text(
                           'Começar',
@@ -114,7 +138,7 @@ class SplashScreen extends StatelessWidget {
                         );
                       },
                       child: const Text(
-                        'Já tenho uma conta',
+                        'Criar conta / Já tenho uma conta',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 14,
@@ -135,28 +159,17 @@ class SplashScreen extends StatelessWidget {
   }
 
   Widget _buildLogo() {
-    return SizedBox(
-      width: 96,
-      height: 96,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned(
-            top: 4,
-            child: Container(
-              width: 38,
-              height: 38,
-              decoration: const BoxDecoration(
-                color: _amareloSol,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          const Positioned(
-            bottom: 0,
-            child: Icon(Icons.eco, size: 72, color: _verdeFolha),
-          ),
-        ],
+    // O desenho ocupa só a faixa do meio da imagem; o resto é margem
+    // transparente. O Align com heightFactor: 0.5 mostra apenas a metade
+    // central da altura e o ClipRect corta o que sobra, deixando o nome
+    // logo abaixo do desenho. Para mudar o tamanho, altere o width.
+    return ClipRect(
+      child: Align(
+        heightFactor: 0.5,
+        child: Image.asset(
+          'assets/images/logo PI4.png',
+          width: 250,
+        ),
       ),
     );
   }
