@@ -8,9 +8,26 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/armazenamento_local_service.dart';
+import '../session/sessao.dart';
 import '../theme/app_colors.dart';
+
+const _caminhoFundo = 'assets/images/offline_fundo.jpg';
+
+// Bytes da imagem de fundo, guardados na memória enquanto ainda há internet.
+// Na web cada imagem é baixada do servidor só quando aparece; como a tela 10
+// aparece justamente sem internet, ela não conseguiria baixar o fundo.
+Uint8List? _bytesFundo;
+
+Future<void> _guardarFundo() async {
+  if (_bytesFundo != null) return;
+  try {
+    final dados = await rootBundle.load(_caminhoFundo);
+    _bytesFundo = dados.buffer.asUint8List();
+  } catch (_) {}
+}
 
 // Envolve uma tela (ex.: o Dashboard) e abre o ModoOfflineScreen quando o
 // aparelho fica sem internet. Se a conexão voltar com o aviso aberto, ele
@@ -36,6 +53,7 @@ class _AvisoModoOfflineState extends State<AvisoModoOffline> {
   @override
   void initState() {
     super.initState();
+    _guardarFundo();
     _iniciar();
   }
 
@@ -62,8 +80,16 @@ class _AvisoModoOfflineState extends State<AvisoModoOffline> {
 
     if (_avisoAberto) return;
     _avisoAberto = true;
+    // Lê a preferência de SMS da sessão. Sem sessão (ex.: testes), considera
+    // o SMS ligado.
+    final sessao = context
+        .getInheritedWidgetOfExactType<SessaoScope>()
+        ?.notifier;
+    final smsAtivo = sessao?.preferencias.sms ?? true;
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ModoOfflineScreen()),
+      MaterialPageRoute(
+        builder: (_) => ModoOfflineScreen(smsAtivo: smsAtivo),
+      ),
     );
     // Chega aqui quando o aviso fecha ("Entendi", voltar ou conexão voltou).
     _avisoAberto = false;
@@ -80,20 +106,43 @@ class _AvisoModoOfflineState extends State<AvisoModoOffline> {
 }
 
 class ModoOfflineScreen extends StatelessWidget {
-  const ModoOfflineScreen({super.key});
+  const ModoOfflineScreen({
+    super.key,
+    this.semConexao = true,
+    this.smsAtivo = true,
+  });
 
-  // TODO(P043): mostrar o telefone cadastrado e se o SMS está ativo nas
-  // PreferenciasAlerta, quando esses dados vierem do backend (P010).
+  // true: aberta pelo AvisoModoOffline, porque a internet caiu.
+  // false: aberta pelo Perfil só para explicar como funciona sem internet.
+  final bool semConexao;
+
+  // Preferência de SMS do produtor (PreferenciasAlerta.sms).
+  final bool smsAtivo;
+
+  String get _titulo =>
+      semConexao ? 'Modo offline ativado' : 'Como funciona sem internet';
+
+  String get _texto {
+    final consequencia = smsAtivo
+        ? 'os alertas críticos continuarão chegando por SMS.'
+        : 'novos alertas só chegarão quando a internet voltar.';
+    if (semConexao) {
+      // Primeira letra maiúscula, porque aqui começa uma frase nova.
+      return 'Você está sem conexão com a internet.\n'
+          '${consequencia[0].toUpperCase()}${consequencia.substring(1)}';
+    }
+    return 'Quando você ficar sem conexão com a internet, $consequencia';
+  }
+
+  // TODO(P043): mostrar o telefone cadastrado, quando a conta separar
+  // e-mail de telefone (backend, P010).
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/offline_fundo.jpg',
-              fit: BoxFit.cover,
-            ),
+            child: _buildFundo(),
           ),
           // Escurece o topo da imagem para o texto branco ficar legível.
           Positioned.fill(
@@ -129,21 +178,20 @@ class ModoOfflineScreen extends StatelessWidget {
                       const Spacer(),
                       const _SinalSemInternet(),
                       const SizedBox(height: 28),
-                      const Text(
-                        'Modo offline ativado',
+                      Text(
+                        _titulo,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Você está sem conexão com a internet.\n'
-                        'Os alertas críticos continuarão chegando por SMS.',
+                      Text(
+                        _texto,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
                           height: 1.5,
@@ -163,6 +211,25 @@ class ModoOfflineScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildFundo() {
+    // Se a imagem não carregar, mostra um fundo verde liso no lugar da
+    // mensagem de erro.
+    Widget fundoVerde(BuildContext _, Object _, StackTrace? _) =>
+        const ColoredBox(color: AppColors.verde);
+
+    // Usa os bytes guardados pelo AvisoModoOffline; se não houver (ex.: tela
+    // aberta pelo Perfil ou pela prévia, com internet), carrega normalmente.
+    final bytes = _bytesFundo;
+    if (bytes != null) {
+      return Image.memory(bytes, fit: BoxFit.cover, errorBuilder: fundoVerde);
+    }
+    return Image.asset(
+      _caminhoFundo,
+      fit: BoxFit.cover,
+      errorBuilder: fundoVerde,
+    );
+  }
+
   Widget _buildCartao(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -178,26 +245,29 @@ class ModoOfflineScreen extends StatelessWidget {
               color: const Color(0xFFE8F3EC),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                _IconeSms(),
-                SizedBox(width: 14),
+                const _IconeSms(),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Alertas por SMS',
-                        style: TextStyle(
+                        smsAtivo ? 'Alertas por SMS' : 'SMS desligado',
+                        style: const TextStyle(
                           color: AppColors.textoEscuro,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      SizedBox(height: 6),
+                      const SizedBox(height: 6),
                       Text(
-                        'Você receberá apenas os alertas mais importantes.',
-                        style: TextStyle(
+                        smsAtivo
+                            ? 'Você receberá apenas os alertas mais importantes.'
+                            : 'Ative o SMS no Perfil para receber os alertas '
+                                'críticos mesmo sem internet.',
+                        style: const TextStyle(
                           color: AppColors.textoSecundario,
                           fontSize: 14,
                           height: 1.4,
