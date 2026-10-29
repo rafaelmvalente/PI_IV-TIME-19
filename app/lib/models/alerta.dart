@@ -56,5 +56,34 @@ class Alerta {
   final StatusAlerta status;
   final Recomendacao recomendacao;
 
-  // TODO(P022): fromJson/toJson conforme o contrato da API (P010).
+  // Usado pelo cache offline. Os enums são gravados pelo nome (ex.: "geada")
+  // e a data no formato ISO 8601. Os nomes dos campos podem mudar quando o
+  // contrato da API for definido (P010).
+  factory Alerta.fromJson(Map<String, dynamic> json) {
+    return Alerta(
+      id: json['id'] as String,
+      propriedadeId: json['propriedadeId'] as String,
+      tipo: TipoAlerta.values.byName(json['tipo'] as String),
+      nivel: NivelRisco.values.byName(json['nivel'] as String),
+      previstoPara: DateTime.parse(json['previstoPara'] as String),
+      descricao: json['descricao'] as String,
+      status: StatusAlerta.values.byName(json['status'] as String),
+      recomendacao: Recomendacao.fromJson(
+        json['recomendacao'] as Map<String, dynamic>,
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'propriedadeId': propriedadeId,
+      'tipo': tipo.name,
+      'nivel': nivel.name,
+      'previstoPara': previstoPara.toIso8601String(),
+      'descricao': descricao,
+      'status': status.name,
+      'recomendacao': recomendacao.toJson(),
+    };
+  }
 }

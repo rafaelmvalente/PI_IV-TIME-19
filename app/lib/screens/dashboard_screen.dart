@@ -9,6 +9,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/propriedade.dart';
+import 'modo_offline_screen.dart';
 
 // Modelo simples para um alerta da lista. Guardar os dados em uma classe
 // separa "o que mostrar" de "como mostrar", e facilita trocar os dados fixos
@@ -68,6 +69,11 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // AvisoModoOffline abre a tela 10 quando o aparelho fica sem internet.
+    return AvisoModoOffline(child: _buildTela());
+  }
+
+  Widget _buildTela() {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7F5),
       body: Center(

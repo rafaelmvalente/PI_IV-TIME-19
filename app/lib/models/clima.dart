@@ -15,5 +15,23 @@ class ClimaHoje {
   final double minima;
   final String descricao;
 
-  // TODO(P022): fromJson conforme o contrato da API (P010).
+  // Usado pelo cache offline. Os nomes dos campos podem mudar quando o
+  // contrato da API for definido (P010).
+  factory ClimaHoje.fromJson(Map<String, dynamic> json) {
+    return ClimaHoje(
+      temperatura: (json['temperatura'] as num).toDouble(),
+      maxima: (json['maxima'] as num).toDouble(),
+      minima: (json['minima'] as num).toDouble(),
+      descricao: json['descricao'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'temperatura': temperatura,
+      'maxima': maxima,
+      'minima': minima,
+      'descricao': descricao,
+    };
+  }
 }

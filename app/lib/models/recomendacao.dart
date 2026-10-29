@@ -15,5 +15,17 @@ class Recomendacao {
   final String detalhe;
   final List<String> dicas;
 
-  // TODO(P022): fromJson/toJson conforme o contrato da API (P010).
+  // Usado pelo cache offline. Os nomes dos campos podem mudar quando o
+  // contrato da API for definido (P010).
+  factory Recomendacao.fromJson(Map<String, dynamic> json) {
+    return Recomendacao(
+      acao: json['acao'] as String,
+      detalhe: json['detalhe'] as String? ?? '',
+      dicas: List<String>.from(json['dicas'] as List? ?? const []),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'acao': acao, 'detalhe': detalhe, 'dicas': dicas};
+  }
 }
