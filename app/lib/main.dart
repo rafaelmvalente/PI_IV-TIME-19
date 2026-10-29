@@ -5,9 +5,17 @@
 
 import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
+import 'session/sessao.dart';
 
 void main() {
-  runApp(const ClimAlertaApp());
+  // A sessão fica acima do MaterialApp para todas as telas conseguirem ler
+  // quem está logado e a propriedade atual (SessaoScope.of(context)).
+  runApp(
+    SessaoScope(
+      controller: SessaoController(),
+      child: const ClimAlertaApp(),
+    ),
+  );
 }
 
 class ClimAlertaApp extends StatelessWidget {

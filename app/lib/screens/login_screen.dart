@@ -12,9 +12,11 @@ import 'package:flutter/material.dart';
 
 import '../models/propriedade.dart';
 import '../services/auth_service.dart';
+import '../session/sessao.dart';
 import 'cadastro_propriedade_screen.dart';
 import 'criar_conta_screen.dart';
 import 'dashboard_screen.dart';
+import 'recuperar_senha_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.loginInicial});
@@ -58,6 +60,17 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  void _abrirRecuperarSenha() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => RecuperarSenhaScreen(
+          loginInicial: _loginController.text,
+          onEnviar: AuthService.recuperarSenha,
+        ),
+      ),
+    );
+  }
+
   void _abrirDashboard({Propriedade? propriedade}) {
     // Substitui a tela de login pelo dashboard.
     // Assim, o botão de voltar não retorna ao login após entrar.
@@ -84,10 +97,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!mounted) return;
 
+    // Guarda quem entrou (e a propriedade da conta, se houver) para que
+    // todas as telas do app consigam ler.
+    SessaoScope.of(context).entrar(
+      login: conta.login,
+      propriedade: conta.propriedade,
+    );
+
     // Se a conta já possui propriedade cadastrada, abre o dashboard.
     // Caso contrário, pergunta se o usuário deseja cadastrar uma.
     if (conta.temPropriedade) {
-      _abrirDashboard();
+      _abrirDashboard(propriedade: conta.propriedade);
     } else {
       await _perguntarCadastroPropriedade(conta);
     }
@@ -140,7 +160,8 @@ class _LoginScreenState extends State<LoginScreen> {
       // permanece na tela de login.
       if (propriedade == null) return;
 
-      AuthService.marcarPropriedadeCadastrada(conta);
+      AuthService.marcarPropriedadeCadastrada(conta, propriedade: propriedade);
+      SessaoScope.of(context).definirPropriedade(propriedade);
 
       _abrirDashboard(propriedade: propriedade);
       return;
@@ -274,9 +295,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Align(
                                   alignment: Alignment.centerRight,
                                   child: TextButton(
-                                    onPressed: () {
-                                      _mostrarMensagem('Em breve');
-                                    },
+                                    onPressed: _abrirRecuperarSenha,
                                     child: const Text(
                                       'Esqueceu sua senha?',
                                       style: TextStyle(
