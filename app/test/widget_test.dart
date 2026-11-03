@@ -14,6 +14,6 @@ void main() {
 
     expect(find.text('ClimAlerta'), findsOneWidget);
     expect(find.text('Começar'), findsOneWidget);
-    expect(find.text('Já tenho uma conta'), findsOneWidget);
+    expect(find.text('Criar conta / Já tenho uma conta'), findsOneWidget);
   });
 }

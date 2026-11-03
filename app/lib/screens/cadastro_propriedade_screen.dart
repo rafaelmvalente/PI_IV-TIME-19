@@ -2,7 +2,8 @@
 // Data: 13/10/26
 // Horário:
 // Descrição: Tela de cadastro da propriedade do ClimAlerta. Contém os campos
-// de nome da propriedade, tipo de cultivo, tamanho da área (opcional) e a
+// de nome da propriedade, tipo de cultivo, estágio da lavoura (opcional),
+// tamanho da área (opcional) e a
 // localização obtida pelo GPS, a ilustração da paisagem rural e o botão
 // "Salvar". Ao salvar, devolve a Propriedade preenchida para a tela anterior.
 
@@ -10,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/coordenada.dart';
+import '../models/estagio_lavoura.dart';
 import '../models/propriedade.dart';
 import '../services/localizacao_service.dart';
 import '../theme/app_colors.dart';
@@ -38,6 +40,7 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
   final _localizacaoKey = GlobalKey<FormFieldState<Coordenada>>();
 
   TipoCultivo? _cultivo;
+  EstagioLavoura? _estagio;
   bool _buscandoLocalizacao = false;
   String? _erroLocalizacao;
 
@@ -114,6 +117,7 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
       cultivo: _cultivo!,
       localizacao: _localizacaoKey.currentState!.value!,
       areaHectares: _converterArea(_areaController.text),
+      estagio: _estagio,
     );
 
     Navigator.of(context).pop(propriedade);
@@ -191,6 +195,7 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
                                   rotulo: 'Tipo de cultivo',
                                   child: DropdownButtonFormField<TipoCultivo>(
                                     initialValue: _cultivo,
+                                    isExpanded: true,
                                     hint: const Text(
                                       'Selecione o tipo de cultivo',
                                     ),
@@ -207,6 +212,33 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
                                         setState(() => _cultivo = valor),
                                     validator: _validarCultivo,
                                   ),
+                                ),
+                                const SizedBox(height: 20),
+                                _CampoComRotulo(
+                                  rotulo: 'Estágio da lavoura',
+                                  complemento: '(opcional)',
+                                  child:
+                                      DropdownButtonFormField<EstagioLavoura>(
+                                        initialValue: _estagio,
+                                        isExpanded: true,
+                                        hint: const Text(
+                                          'Selecione o estágio atual',
+                                        ),
+                                        icon: const Icon(
+                                          Icons.keyboard_arrow_down,
+                                        ),
+                                        decoration: _decoracao(null),
+                                        items: [
+                                          for (final estagio
+                                              in EstagioLavoura.values)
+                                            DropdownMenuItem(
+                                              value: estagio,
+                                              child: Text(estagio.rotulo),
+                                            ),
+                                        ],
+                                        onChanged: (valor) =>
+                                            setState(() => _estagio = valor),
+                                      ),
                                 ),
                                 const SizedBox(height: 20),
                                 _CampoComRotulo(

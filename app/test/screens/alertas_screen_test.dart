@@ -9,7 +9,7 @@ import 'package:app/widgets/alerta_visual.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../preview/alertas_exemplo.dart';
+import 'package:app/data/alertas_exemplo.dart';
 
 void main() {
   Widget tela(Future<List<Alerta>> Function() carregar) =>
@@ -82,7 +82,7 @@ void main() {
     expect(find.text('Ver outras orientações'), findsOneWidget);
   });
 
-  testWidgets('sem backend, mudar o status mostra aviso', (tester) async {
+  testWidgets('mudar o status atualiza o detalhe', (tester) async {
     await tester.pumpWidget(tela(() async => alertasDeExemplo(DateTime.now())));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Risco de geada'));
@@ -93,9 +93,8 @@ void main() {
     await tester.tap(find.text('Resolvido'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Não foi possível atualizar o status agora.'),
-        findsOneWidget);
-    expect(find.text('Status: Em andamento'), findsOneWidget);
+    expect(find.text('Status atualizado: Resolvido'), findsOneWidget);
+    expect(find.text('Status: Resolvido'), findsOneWidget);
   });
 
   test('formatarQuando usa Hoje/Amanhã e o mês abreviado', () {

@@ -4,6 +4,7 @@
 // de cultivo aceitos pelo app.
 
 import 'coordenada.dart';
+import 'estagio_lavoura.dart';
 
 enum TipoCultivo {
   milho('Milho'),
@@ -25,12 +26,15 @@ class Propriedade {
     required this.cultivo,
     required this.localizacao,
     this.areaHectares,
+    this.estagio,
   });
 
   final String nome;
   final TipoCultivo cultivo;
   final Coordenada localizacao;
   final double? areaHectares;
+  // Opcional: o produtor pode não saber ou não querer informar no cadastro.
+  final EstagioLavoura? estagio;
 
   /// Formato usado para gravar no Firestore.
   Map<String, dynamic> toMap() {
@@ -40,6 +44,7 @@ class Propriedade {
       'latitude': localizacao.latitude,
       'longitude': localizacao.longitude,
       'areaHectares': areaHectares,
+      'estagio': estagio?.name,
     };
   }
 }

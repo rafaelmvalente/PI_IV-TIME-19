@@ -2,7 +2,6 @@
 // Descrição: Estágio da lavoura, usado para classificar o nível de risco do
 // alerta (README: plantio, crescimento, floração, colheita).
 
-// TODO(P026): adicionar o estágio ao modelo Propriedade e à tela de cadastro.
 enum EstagioLavoura {
   plantio('Plantio'),
   crescimento('Crescimento'),

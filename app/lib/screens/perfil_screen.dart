@@ -7,10 +7,12 @@
 
 import 'package:flutter/material.dart';
 
+import '../models/estagio_lavoura.dart';
 import '../models/preferencias_alerta.dart';
 import '../models/propriedade.dart';
 import '../services/auth_service.dart';
 import '../session/sessao.dart';
+import 'cadastro_propriedade_screen.dart';
 import 'modo_offline_screen.dart';
 
 class PerfilScreen extends StatelessWidget {
@@ -34,7 +36,12 @@ class PerfilScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = sessao ?? SessaoScope.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Perfil e configurações')),
+      // Sem seta de voltar: o Perfil é uma aba do dashboard, e voltar
+      // fecharia o app sem sair da conta.
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('Perfil e configurações'),
+      ),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: controller,
@@ -232,14 +239,24 @@ class _SecaoPropriedade extends StatelessWidget {
       showDragHandle: true,
       builder: (_) => _EditarPropriedadeSheet(
         propriedade: atual,
-        onSalvar: (nova) {
-          sessao.definirPropriedade(nova);
-          // Mantém a conta em dia, para a edição não se perder ao sair e entrar.
-          final login = sessao.login;
-          if (login != null) AuthService.atualizarPropriedade(login, nova);
-        },
+        onSalvar: _salvar,
       ),
     );
+  }
+
+  void _salvar(Propriedade nova) {
+    sessao.definirPropriedade(nova);
+    // Mantém a conta em dia, para a edição não se perder ao sair e entrar.
+    final login = sessao.login;
+    if (login != null) AuthService.atualizarPropriedade(login, nova);
+  }
+
+  // Para quem escolheu "Agora não" no login e quer cadastrar depois.
+  Future<void> _cadastrar(BuildContext context) async {
+    final nova = await Navigator.of(context).push<Propriedade>(
+      MaterialPageRoute(builder: (_) => const CadastroPropriedadeScreen()),
+    );
+    if (nova != null) _salvar(nova);
   }
 
   @override
@@ -252,7 +269,7 @@ class _SecaoPropriedade extends StatelessWidget {
       children: [
         Text('Minha propriedade', style: textTheme.titleLarge),
         const SizedBox(height: 12),
-        if (p == null)
+        if (p == null) ...[
           const Card(
             child: Padding(
               padding: EdgeInsets.all(16),
@@ -261,8 +278,15 @@ class _SecaoPropriedade extends StatelessWidget {
                 style: TextStyle(fontSize: 18),
               ),
             ),
-          )
-        else ...[
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+            onPressed: () => _cadastrar(context),
+            icon: const Icon(Icons.add_home_outlined),
+            label: const Text('Cadastrar propriedade', style: TextStyle(fontSize: 18)),
+          ),
+        ] else ...[
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -277,8 +301,10 @@ class _SecaoPropriedade extends StatelessWidget {
                         ? 'Não informada'
                         : '${_numeroTexto(p.areaHectares!)} ha',
                   ),
-                  // TODO: mostrar o estágio da lavoura quando o modelo
-                  // Propriedade ganhar esse campo (TODO P026).
+                  _LinhaDado(
+                    rotulo: 'Estágio',
+                    valor: p.estagio?.rotulo ?? 'Não informado',
+                  ),
                   _LinhaDado(rotulo: 'Localização', valor: _textoLocalizacao(p)),
                 ],
               ),
@@ -315,11 +341,13 @@ class _EditarPropriedadeSheetState extends State<_EditarPropriedadeSheet> {
   late final TextEditingController _nome;
   late final TextEditingController _area;
   late TipoCultivo _cultivo;
+  EstagioLavoura? _estagio;
 
   @override
   void initState() {
     super.initState();
     final p = widget.propriedade;
+    _estagio = p.estagio;
     _nome = TextEditingController(text: p.nome);
     _area = TextEditingController(
       text: p.areaHectares == null ? '' : _numeroTexto(p.areaHectares!),
@@ -353,6 +381,7 @@ class _EditarPropriedadeSheetState extends State<_EditarPropriedadeSheet> {
         localizacao: widget.propriedade.localizacao,
         areaHectares:
             textoArea.isEmpty ? null : double.parse(textoArea.replaceAll(',', '.')),
+        estagio: _estagio,
       ),
     );
     Navigator.of(context).pop();
@@ -395,6 +424,21 @@ class _EditarPropriedadeSheetState extends State<_EditarPropriedadeSheet> {
                       label: Text(c.rotulo, style: const TextStyle(fontSize: 18)),
                       selected: _cultivo == c,
                       onSelected: (_) => setState(() => _cultivo = c),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text('Estágio da lavoura', style: textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final e in EstagioLavoura.values)
+                    ChoiceChip(
+                      label: Text(e.rotulo, style: const TextStyle(fontSize: 18)),
+                      selected: _estagio == e,
+                      onSelected: (_) => setState(() => _estagio = e),
                     ),
                 ],
               ),

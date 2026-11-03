@@ -56,6 +56,20 @@ class Alerta {
   final StatusAlerta status;
   final Recomendacao recomendacao;
 
+  // Cópia do alerta com outro status (usada ao marcar o que foi feito).
+  Alerta copyWith({StatusAlerta? status}) {
+    return Alerta(
+      id: id,
+      propriedadeId: propriedadeId,
+      tipo: tipo,
+      nivel: nivel,
+      previstoPara: previstoPara,
+      descricao: descricao,
+      status: status ?? this.status,
+      recomendacao: recomendacao,
+    );
+  }
+
   // Usado pelo cache offline. Os enums são gravados pelo nome (ex.: "geada")
   // e a data no formato ISO 8601. Os nomes dos campos podem mudar quando o
   // contrato da API for definido (P010).

@@ -13,8 +13,8 @@ import 'detalhe_alerta_screen.dart';
 // StatefulWidget porque a tela muda enquanto está aberta: o filtro escolhido
 // e o resultado do carregamento dos alertas.
 class AlertasScreen extends StatefulWidget {
-  // Quem abre a tela decide de onde vêm os alertas. Hoje é o AlertaService,
-  // que ainda depende do backend (TODO(P010)).
+  // Quem abre a tela decide de onde vêm os alertas. No app é o AlertaService,
+  // que usa alertas de exemplo até o backend existir (P010).
   const AlertasScreen({super.key, required this.carregarAlertas});
 
   final Future<List<Alerta>> Function() carregarAlertas;
@@ -24,15 +24,6 @@ class AlertasScreen extends StatefulWidget {
 }
 
 class _AlertasScreenState extends State<AlertasScreen> {
-  // Cada filtro é um par (tipo, texto do botão). O tipo null significa
-  // "Todos", ou seja, nenhum filtro aplicado.
-  static const _filtros = <(TipoAlerta?, String)>[
-    (null, 'Todos'),
-    (TipoAlerta.geada, 'Geada'),
-    (TipoAlerta.seca, 'Seca'),
-    (TipoAlerta.chuvaForte, 'Chuva'),
-  ];
-
   // "late" avisa que a variável recebe valor depois (no initState), mas
   // antes de ser usada.
   late Future<List<Alerta>> _alertas;
@@ -63,23 +54,20 @@ class _AlertasScreenState extends State<AlertasScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      // A seta só aparece se houver uma tela para voltar.
-                      // Quando a tela for uma aba da navegação, ela some.
-                      if (Navigator.of(context).canPop()) const BackButton(),
-                      const Text(
-                        'Alertas',
-                        style: TextStyle(
-                          color: AppColors.textoEscuro,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                  // Sem seta de voltar: a tela é uma aba da navegação.
+                  const Text(
+                    'Alertas',
+                    style: TextStyle(
+                      color: AppColors.textoEscuro,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  _buildFiltros(),
+                  FiltroTipoAlerta(
+                    selecionado: _filtro,
+                    aoMudar: (tipo) => setState(() => _filtro = tipo),
+                  ),
                   const SizedBox(height: 16),
                   Expanded(child: _buildLista()),
                 ],
@@ -87,38 +75,6 @@ class _AlertasScreenState extends State<AlertasScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildFiltros() {
-    // Rolagem horizontal para os filtros não estourarem em telas estreitas.
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final (tipo, rotulo) in _filtros)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              // ChoiceChip é o botão em formato de pílula do protótipo; o
-              // selecionado fica verde com texto branco.
-              child: ChoiceChip(
-                label: Text(rotulo),
-                selected: _filtro == tipo,
-                showCheckmark: false,
-                selectedColor: AppColors.verde,
-                backgroundColor: const Color(0xFFE6EBE8),
-                side: BorderSide.none,
-                shape: const StadiumBorder(),
-                labelStyle: TextStyle(
-                  color: _filtro == tipo ? Colors.white : AppColors.textoEscuro,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-                onSelected: (_) => setState(() => _filtro = tipo),
-              ),
-            ),
-        ],
       ),
     );
   }
@@ -136,7 +92,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
         }
 
         if (snapshot.hasError) {
-          return _Mensagem(
+          return MensagemAlertas(
             icone: Icons.cloud_off,
             texto:
                 'Não foi possível carregar os alertas.\n'
@@ -152,7 +108,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
             .toList();
 
         if (alertas.isEmpty) {
-          return _Mensagem(
+          return MensagemAlertas(
             icone: Icons.notifications_off_outlined,
             texto: _filtro == null
                 ? 'Nenhum alerta por enquanto.'
@@ -227,50 +183,6 @@ class _CartaoAlerta extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-// Mensagem centralizada para os estados de vazio e de erro.
-class _Mensagem extends StatelessWidget {
-  const _Mensagem({
-    required this.icone,
-    required this.texto,
-    this.botao,
-    this.aoTocar,
-  });
-
-  final IconData icone;
-  final String texto;
-  final String? botao;
-  final VoidCallback? aoTocar;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icone, size: 56, color: AppColors.textoSecundario),
-          const SizedBox(height: 12),
-          Text(
-            texto,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.textoEscuro, fontSize: 16),
-          ),
-          if (botao != null) ...[
-            const SizedBox(height: 16),
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.verde,
-                side: const BorderSide(color: AppColors.verde),
-              ),
-              onPressed: aoTocar,
-              child: Text(botao!),
-            ),
-          ],
-        ],
       ),
     );
   }
