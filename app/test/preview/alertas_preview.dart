@@ -6,7 +6,7 @@
 import 'package:app/screens/alertas_screen.dart';
 import 'package:flutter/material.dart';
 
-import 'alertas_exemplo.dart';
+import 'package:app/data/alertas_exemplo.dart';
 
 void main() {
   runApp(

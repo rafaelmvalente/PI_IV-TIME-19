@@ -22,7 +22,7 @@ class DetalheAlertaScreen extends StatefulWidget {
   final Alerta alerta;
 
   // Salva o novo status e devolve o alerta atualizado. Se não for informado,
-  // usa o AlertaService, que ainda depende do backend (TODO(P010)).
+  // usa o AlertaService (hoje com alertas de exemplo, até o backend: P010).
   final Future<Alerta> Function(StatusAlerta status)? atualizarStatus;
 
   @override
@@ -39,8 +39,8 @@ class _DetalheAlertaScreenState extends State<DetalheAlertaScreen> {
         widget.atualizarStatus ??
         (s) => const AlertaService().atualizarStatus(_alerta.id, s);
 
-    // try/catch: se o salvamento falhar (hoje sempre falha, pois não há
-    // backend), o produtor vê uma mensagem em vez de o app travar.
+    // try/catch: se o salvamento falhar (ex.: sem conexão com o
+    // servidor), o produtor vê uma mensagem em vez de o app travar.
     try {
       final atualizado = await Future.sync(() => salvar(status));
       // "mounted" confere se a tela ainda está aberta depois da espera.

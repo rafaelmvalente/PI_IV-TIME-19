@@ -4,33 +4,24 @@
 // Descrição: Tela de início (dashboard) do aplicativo ClimAlerta. Mostra a
 // saudação ao produtor e a propriedade, o clima de hoje, o alerta em destaque
 // e a lista dos próximos alertas previstos, além da barra de navegação
-// inferior. Os dados são fixos (exemplo) até a integração com o servidor.
+// inferior, que troca entre as abas Início, Alertas, Histórico e Perfil.
+// O clima é fixo (exemplo) e os alertas vêm do AlertaService até a
+// integração com o servidor.
 
 import 'package:flutter/material.dart';
 
+import '../models/alerta.dart';
 import '../models/propriedade.dart';
+import '../services/alerta_service.dart';
+import '../session/sessao.dart';
+import '../widgets/alerta_visual.dart';
+import 'alertas_screen.dart';
+import 'detalhe_alerta_screen.dart';
+import 'historico_screen.dart';
 import 'modo_offline_screen.dart';
+import 'perfil_screen.dart';
 
-// Modelo simples para um alerta da lista. Guardar os dados em uma classe
-// separa "o que mostrar" de "como mostrar", e facilita trocar os dados fixos
-// pelos dados do servidor depois.
-class _Alerta {
-  final String titulo;
-  final String quando;
-  final IconData icone;
-  final Color corIcone;
-  final Color corFundo;
-
-  const _Alerta({
-    required this.titulo,
-    required this.quando,
-    required this.icone,
-    required this.corIcone,
-    required this.corFundo,
-  });
-}
-
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   // A propriedade é opcional (?) porque o dashboard também abre pelo login,
   // onde ainda não há propriedade cadastrada. Nesse caso, mostra o nome de
   // exemplo.
@@ -38,34 +29,33 @@ class DashboardScreen extends StatelessWidget {
 
   final Propriedade? propriedade;
 
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
   static const Color _verde = Color(0xFF1E7B58);
   static const Color _textoEscuro = Color(0xFF1F2D27);
   static const Color _textoSuave = Color(0xFF6B7A73);
 
-  // Dados de exemplo, iguais aos do protótipo.
-  static const List<_Alerta> _proximos = [
-    _Alerta(
-      titulo: 'Chuva forte',
-      quando: 'Amanhã, 23 de ago · 14:00',
-      icone: Icons.water_drop,
-      corIcone: Color(0xFF3B82C4),
-      corFundo: Color(0xFFE3F0FB),
-    ),
-    _Alerta(
-      titulo: 'Seca prolongada',
-      quando: '25 de ago · 10:00',
-      icone: Icons.wb_sunny,
-      corIcone: Color(0xFFE9A317),
-      corFundo: Color(0xFFFFF1CC),
-    ),
-    _Alerta(
-      titulo: 'Geada',
-      quando: '28 de ago · 06:00',
-      icone: Icons.ac_unit,
-      corIcone: Color(0xFF2E8BC0),
-      corFundo: Color(0xFFDDF1F8),
-    ),
-  ];
+  // Posições das abas na barra de navegação.
+  static const int _abaInicio = 0;
+  static const int _abaAlertas = 1;
+  static const int _abaHistorico = 2;
+  static const int _abaPerfil = 3;
+
+  int _aba = _abaInicio;
+
+  // Próximos alertas da propriedade, buscados uma vez ao abrir a tela.
+  final Future<List<Alerta>> _alertas = const AlertaService().listar('');
+
+  void _irPara(int aba) => setState(() => _aba = aba);
+
+  void _abrirDetalhe(Alerta alerta) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => DetalheAlertaScreen(alerta: alerta)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,40 +64,76 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildTela() {
+    // Cada aba é montada só quando aparece; assim Alertas e Histórico
+    // buscam os dados de novo toda vez que o produtor volta para elas.
+    final conteudo = switch (_aba) {
+      _abaAlertas => AlertasScreen(
+        carregarAlertas: () => const AlertaService().listar(''),
+      ),
+      _abaHistorico => const HistoricoScreen(),
+      _abaPerfil => const PerfilScreen(),
+      _ => _buildInicio(),
+    };
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7F5),
       body: Center(
         // Limita a largura na web, simulando um celular.
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 430),
-          // A tela é uma Column com duas partes: o conteúdo (Expanded, que
-          // ocupa todo o espaço que sobra e rola se for grande demais) e a
-          // barra de navegação, que fica fixa embaixo.
+          // A tela é uma Column com duas partes: o conteúdo da aba (Expanded,
+          // que ocupa todo o espaço que sobra) e a barra de navegação, que
+          // fica fixa embaixo.
           child: Column(
             children: [
-              Expanded(
-                child: SafeArea(
-                  bottom: false,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildCabecalho(),
-                        const SizedBox(height: 18),
-                        _buildClimaHoje(),
-                        const SizedBox(height: 14),
-                        _buildAlertaDestaque(),
-                        const SizedBox(height: 22),
-                        _buildProximosAlertas(),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const _BarraNavegacao(),
+              Expanded(child: conteudo),
+              _BarraNavegacao(indice: _aba, aoTocar: _irPara),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInicio() {
+    return SafeArea(
+      bottom: false,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: FutureBuilder<List<Alerta>>(
+          future: _alertas,
+          builder: (context, snapshot) {
+            // Enquanto carrega (ou se der erro) a lista fica vazia, e o
+            // resto da tela aparece normalmente.
+            final alertas = snapshot.data ?? const <Alerta>[];
+            // O destaque é o primeiro alerta de risco alto; se não houver,
+            // o mais próximo.
+            final destaque = alertas.isEmpty
+                ? null
+                : alertas.firstWhere(
+                    (a) => a.nivel == NivelRisco.alto,
+                    orElse: () => alertas.first,
+                  );
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildCabecalho(),
+                const SizedBox(height: 18),
+                _buildClimaHoje(),
+                if (destaque != null) ...[
+                  const SizedBox(height: 14),
+                  _buildAlertaDestaque(destaque),
+                ],
+                const SizedBox(height: 22),
+                _buildProximosAlertas(
+                  alertas,
+                  carregando:
+                      snapshot.connectionState != ConnectionState.done,
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -130,8 +156,12 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildCabecalho() {
     // "??" usa o valor da esquerda se ele existir; se for null, usa o da
-    // direita. Aqui: o nome cadastrado, ou o nome de exemplo.
-    final nomePropriedade = propriedade?.nome ?? 'Fazenda Boa Vista';
+    // direita. A sessão vem primeiro porque guarda a propriedade editada no
+    // Perfil; depois a recebida ao abrir a tela; por fim o nome de exemplo.
+    final nomePropriedade =
+        SessaoScope.of(context).propriedade?.nome ??
+        widget.propriedade?.nome ??
+        'Fazenda Boa Vista';
 
     return Row(
       children: [
@@ -170,14 +200,24 @@ class DashboardScreen extends StatelessWidget {
           ),
         ),
         IconButton(
-          onPressed: () {
-          },
+          tooltip: 'Alertas',
+          onPressed: () => _irPara(_abaAlertas),
           icon: const Icon(Icons.notifications_none, color: _textoEscuro),
         ),
-        const CircleAvatar(
-          radius: 18,
-          backgroundColor: _verde,
-          child: Icon(Icons.person, color: Colors.white, size: 22),
+        // O avatar leva ao Perfil. Semantics avisa ao leitor de tela que é
+        // um botão.
+        Semantics(
+          button: true,
+          label: 'Perfil',
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () => _irPara(_abaPerfil),
+            child: const CircleAvatar(
+              radius: 18,
+              backgroundColor: _verde,
+              child: Icon(Icons.person, color: Colors.white, size: 22),
+            ),
+          ),
         ),
       ],
     );
@@ -243,7 +283,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAlertaDestaque() {
+  Widget _buildAlertaDestaque(Alerta alerta) {
     // InkWell dá o efeito de toque (ondulação) e permite clicar no cartão
     // inteiro. O Material por baixo é necessário para a ondulação aparecer
     // por cima da cor de fundo.
@@ -252,40 +292,43 @@ class DashboardScreen extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {
-        },
+        onTap: () => _abrirDetalhe(alerta),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFF3D9A4)),
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.warning_amber_rounded,
+              const Icon(Icons.warning_amber_rounded,
                   color: Color(0xFFE08A00), size: 30),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Alerta de geada',
-                      style: TextStyle(
+                      'Alerta de ${alerta.tipo.rotulo.toLowerCase()}',
+                      style: const TextStyle(
                         color: Color(0xFF8A5300),
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
-                      'Risco alto para as próximas horas.',
-                      style: TextStyle(color: Color(0xFF8A5300), fontSize: 13),
+                      'Risco ${alerta.nivel.rotulo.toLowerCase()} · '
+                      '${formatarQuando(alerta.previstoPara)}',
+                      style: const TextStyle(
+                        color: Color(0xFF8A5300),
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: Color(0xFF8A5300)),
+              const Icon(Icons.chevron_right, color: Color(0xFF8A5300)),
             ],
           ),
         ),
@@ -293,24 +336,30 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProximosAlertas() {
+  Widget _buildProximosAlertas(List<Alerta> alertas, {required bool carregando}) {
+    // Mostra só os três mais próximos; o resto fica na aba Alertas.
+    final proximos = alertas.take(3).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Próximos alertas',
-              style: TextStyle(
-                color: _textoEscuro,
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
+            // Flexible: em telas estreitas o título quebra a linha em vez de
+            // empurrar o "Ver todos" para fora.
+            const Flexible(
+              child: Text(
+                'Próximos alertas',
+                style: TextStyle(
+                  color: _textoEscuro,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             TextButton(
-              onPressed: () {
-              },
+              onPressed: () => _irPara(_abaAlertas),
               child: const Text(
                 'Ver todos',
                 style: TextStyle(color: _verde, fontWeight: FontWeight.w600),
@@ -323,12 +372,28 @@ class DashboardScreen extends StatelessWidget {
           decoration: _estiloCartao(),
           child: Column(
             children: [
+              if (carregando)
+                const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: CircularProgressIndicator(color: _verde),
+                )
+              else if (proximos.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text(
+                    'Nenhum alerta previsto.',
+                    style: TextStyle(color: _textoSuave, fontSize: 14),
+                  ),
+                ),
               // "collection for": monta um item para cada alerta da lista, sem
               // repetir código. O "if" dentro da lista coloca a linha
               // divisória entre os itens, menos depois do último.
-              for (int i = 0; i < _proximos.length; i++) ...[
-                _ItemAlerta(alerta: _proximos[i]),
-                if (i < _proximos.length - 1)
+              for (int i = 0; i < proximos.length; i++) ...[
+                _ItemAlerta(
+                  alerta: proximos[i],
+                  aoTocar: () => _abrirDetalhe(proximos[i]),
+                ),
+                if (i < proximos.length - 1)
                   const Divider(height: 1, indent: 16, endIndent: 16),
               ],
             ],
@@ -340,33 +405,29 @@ class DashboardScreen extends StatelessWidget {
 }
 
 // Uma linha da lista de próximos alertas. Fica em uma classe própria para
-// que cada item seja montado a partir de um _Alerta.
+// que cada item seja montado a partir de um Alerta.
 class _ItemAlerta extends StatelessWidget {
-  final _Alerta alerta;
+  final Alerta alerta;
+  final VoidCallback aoTocar;
 
-  const _ItemAlerta({required this.alerta});
+  const _ItemAlerta({required this.alerta, required this.aoTocar});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {
-      },
+      onTap: aoTocar,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: alerta.corFundo,
-              child: Icon(alerta.icone, color: alerta.corIcone, size: 22),
-            ),
+            IconeAlerta(tipo: alerta.tipo, raio: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    alerta.titulo,
+                    alerta.tipo.rotulo,
                     style: const TextStyle(
                       color: Color(0xFF1F2D27),
                       fontSize: 15,
@@ -375,7 +436,7 @@ class _ItemAlerta extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    alerta.quando,
+                    formatarQuando(alerta.previstoPara),
                     style: const TextStyle(
                       color: Color(0xFF6B7A73),
                       fontSize: 12,
@@ -392,15 +453,18 @@ class _ItemAlerta extends StatelessWidget {
   }
 }
 
-// Barra de navegação inferior (Início, Alertas, Histórico e Perfil). Por
-// enquanto só "Início" está implementada, então o índice selecionado é fixo.
+// Barra de navegação inferior (Início, Alertas, Histórico e Perfil). Avisa a
+// tela qual aba foi tocada, e a tela troca o conteúdo.
 class _BarraNavegacao extends StatelessWidget {
-  const _BarraNavegacao();
+  const _BarraNavegacao({required this.indice, required this.aoTocar});
+
+  final int indice;
+  final ValueChanged<int> aoTocar;
 
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
-      currentIndex: 0,
+      currentIndex: indice,
       // "fixed" mantém os quatro itens sempre com o texto visível.
       type: BottomNavigationBarType.fixed,
       backgroundColor: Colors.white,
@@ -408,8 +472,7 @@ class _BarraNavegacao extends StatelessWidget {
       unselectedItemColor: const Color(0xFF8A9690),
       selectedFontSize: 12,
       unselectedFontSize: 12,
-      onTap: (indice) {
-      },
+      onTap: aoTocar,
       items: const [
         BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined),

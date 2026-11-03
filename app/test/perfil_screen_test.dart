@@ -1,5 +1,7 @@
 import 'package:app/models/coordenada.dart';
+import 'package:app/models/estagio_lavoura.dart';
 import 'package:app/models/propriedade.dart';
+import 'package:app/screens/cadastro_propriedade_screen.dart';
 import 'package:app/screens/perfil_screen.dart';
 import 'package:app/session/sessao.dart';
 import 'package:flutter/material.dart';
@@ -68,6 +70,16 @@ void main() {
     expect(find.text('Você ainda não cadastrou uma propriedade.'), findsOneWidget);
   });
 
+  testWidgets('sem propriedade, o botão abre o cadastro', (tester) async {
+    final sessao = SessaoController()..entrar(login: 'antonio@exemplo.com');
+    await _abrir(tester, sessao);
+
+    await tester.tap(find.text('Cadastrar propriedade'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CadastroPropriedadeScreen), findsOneWidget);
+  });
+
   testWidgets('mostra carregando', (tester) async {
     final sessao = _sessaoLogada()..definirCarregando(true);
     await _abrir(tester, sessao);
@@ -123,6 +135,24 @@ void main() {
     expect(sessao.propriedade?.nome, 'Sítio Novo');
     expect(sessao.propriedade?.cultivo, TipoCultivo.feijao);
     expect(find.text('Sítio Novo'), findsOneWidget);
+  });
+
+  testWidgets('mostra e edita o estágio da lavoura', (tester) async {
+    final sessao = _sessaoLogada();
+    await _abrir(tester, sessao);
+
+    expect(find.text('Não informado'), findsOneWidget);
+
+    await tester.tap(find.text('Editar propriedade'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Floração'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Salvar alterações'));
+    await tester.tap(find.text('Salvar alterações'));
+    await tester.pumpAndSettle();
+
+    expect(sessao.propriedade?.estagio, EstagioLavoura.floracao);
+    expect(find.text('Floração'), findsOneWidget);
   });
 
   testWidgets('sai da conta depois de confirmar', (tester) async {
