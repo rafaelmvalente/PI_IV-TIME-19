@@ -73,7 +73,8 @@ A tela inicial apresenta:
 ## Tecnologias utilizadas
 
 - Aplicativo (cliente): Flutter (Dart)
-- Servidor: Java 21, Spring Boot (API REST)
+- Backend: Node.js (API REST)
+- Servidor: Java 21 puro, com threads e sockets (validação de telefone, em `servidor-java/`)
 - Banco de dados: MongoDB
 - Testes automatizados: JUnit 5, Mockito
 - Integrações: INMET / OpenWeather (clima), Firebase Cloud Messaging (push) e Twilio (SMS)
