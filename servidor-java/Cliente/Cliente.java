@@ -10,8 +10,9 @@ import java.io.*;
 // Quando o backend estiver pronto, ele fara exatamente o que este main faz:
 //   1. abrir um socket em HOST_PADRAO:PORTA_PADRAO (localhost:3000);
 //   2. enviar um PedidoDeValidacao com o telefone digitado no app;
-//   3. ler o Resultado (valido + mensagem) e devolver ao app;
-//   4. enviar um PedidoParaSair ao terminar.
+//   3. enviar um PedidoDeResultado;
+//   4. ler o Resultado (valido + mensagem) e devolver ao app;
+//   5. enviar um PedidoParaSair ao terminar.
 public class Cliente
 {
 	public static final String HOST_PADRAO  = "localhost";
@@ -123,6 +124,7 @@ public class Cliente
 					System.out.println();
 
 					servidor.receba (new PedidoDeValidacao (telefone));
+					servidor.receba (new PedidoDeResultado ());
 					Comunicado comunicado = null;
 					do
 					{

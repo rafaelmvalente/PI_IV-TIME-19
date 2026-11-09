@@ -1,7 +1,8 @@
 // Caique Vasconcelos Naimi - 25004208
 // Data: 09/11/2026
-// Descrição: Thread que atende um cliente conectado: recebe cada PedidoDeValidacao,
-// valida o telefone (DDD, quantidade de dígitos, celular/fixo) e devolve um Resultado.
+// Descrição: Thread que atende um cliente conectado: guarda o telefone recebido no
+// PedidoDeValidacao e, no PedidoDeResultado, valida esse telefone (DDD, quantidade
+// de dígitos, celular/fixo) e devolve um Resultado.
 // Baseado no modelo do professor (Fazedor de Continhas).
 
 import java.io.*;
@@ -16,6 +17,7 @@ public class SupervisoraDeConexao extends Thread
     " 41 42 43 44 45 46 47 48 49 51 53 54 55 61 62 63 64 65 66 67 68 69" +
     " 71 73 74 75 77 79 81 82 83 84 85 86 87 88 89 91 92 93 94 95 96 97 98 99 ";
 
+    private String              telefone=null;
     private Parceiro            usuario;
     private Socket              conexao;
     private ArrayList<Parceiro> usuarios;
@@ -124,7 +126,11 @@ public class SupervisoraDeConexao extends Thread
                 {
 					PedidoDeValidacao pedidoDeValidacao = (PedidoDeValidacao)comunicado;
 
-                    this.usuario.receba (valideTelefone (pedidoDeValidacao.getTelefone()));
+                    this.telefone = pedidoDeValidacao.getTelefone();
+                }
+                else if (comunicado instanceof PedidoDeResultado)
+                {
+                    this.usuario.receba (valideTelefone (this.telefone));
                 }
                 else if (comunicado instanceof PedidoParaSair)
                 {
