@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Localização usada no cadastro da propriedade (geolocator).
+         FINE = GPS preciso; COARSE = aproximada (o Android 12+ deixa o
+         usuário escolher entre as duas). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="app"
         android:name="${applicationName}"
