@@ -6,8 +6,6 @@
 
 import java.util.*;
 
-// O backend (Node) se conecta a este servidor via socket na PORTA_PADRAO;
-// veja o TODO BACKEND em Cliente/Cliente.java.
 public class Servidor
 {
 	public static String PORTA_PADRAO = "3000";

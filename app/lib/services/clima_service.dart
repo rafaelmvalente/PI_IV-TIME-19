@@ -1,14 +1,13 @@
-// Estrutura criada em 28/10/26 — implementação pendente (responsável: a definir)
-// Descrição: Busca o clima do dia da propriedade. A definir com a arquitetura
-// do backend se os dados vêm do backend ou direto da API (INMET/OpenWeather).
+// Nome: Rafael Mendes Valente - RA: 25002875
+// Dia: 11/11/2026
+// Descrição: Declara a consulta do clima diário de uma propriedade.
 
 import '../models/clima.dart';
 
 class ClimaService {
   const ClimaService();
 
-  // TODO(P021): buscar o clima do dia (endpoint a definir, P010).
   Future<ClimaHoje> climaDeHoje(String propriedadeId) {
-    throw UnimplementedError('P021: clima do dia não implementado');
+    throw UnimplementedError('Consulta do clima diário não implementada');
   }
 }

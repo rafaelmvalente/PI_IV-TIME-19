@@ -134,8 +134,6 @@ class ModoOfflineScreen extends StatelessWidget {
     return 'Quando você ficar sem conexão com a internet, $consequencia';
   }
 
-  // TODO(P043): mostrar o telefone cadastrado, quando a conta separar
-  // e-mail de telefone (backend, P010).
   @override
   Widget build(BuildContext context) {
     return Scaffold(

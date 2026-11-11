@@ -1,8 +1,7 @@
-// Estrutura criada em 28/10/26 — implementação pendente (responsável: a definir)
-// Descrição: Endereço do backend consumido pelo app (backend ainda a definir).
+// Nome: Rafael Mendes Valente - RA: 25002875
+// Dia: 11/11/2026
+// Descrição: Define a URL base do backend consumida pelo aplicativo.
 
 abstract final class ApiConfig {
-  // TODO(P019): definir a URL por ambiente (ex.: --dart-define=API_URL=...).
-  // Não há valor padrão de propósito: o backend ainda não foi definido.
   static const String baseUrl = String.fromEnvironment('API_URL');
 }

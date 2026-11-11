@@ -1,5 +1,6 @@
-// Tabela de risco por cultura (issue #9) - versão ajustada.
-// Cole no mongosh (ou na aba MongoSH do Compass). Pode colar de novo: só substitui.
+// Nome: Rafael Mendes Valente - RA: 25002875
+// Dia: 11/11/2026
+// Descrição: Registra os limites climáticos de risco para culturas e estágios da lavoura.
 //
 // temp_min_c          geada:       temperatura mínima <= medio -> Médio, <= alto -> Alto
 // temp_max_c          calor:       temperatura máxima >= medio -> Médio, >= alto -> Alto

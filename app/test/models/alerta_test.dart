@@ -4,5 +4,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Alerta.fromJson converte a resposta da API', () {}, skip: 'TODO(P038): implementar após definir o contrato JSON com o backend (P010/P022).');
+  test(
+    'Alerta.fromJson converte a resposta da API',
+    () {},
+    skip: 'Contrato JSON da resposta ainda não definido.',
+  );
 }
