@@ -3,9 +3,9 @@
 // Horário:
 // Descrição: Tela de cadastro da propriedade do ClimAlerta. Contém os campos
 // de nome da propriedade, tipo de cultivo, estágio da lavoura (opcional),
-// tamanho da área (opcional) e a
-// localização obtida pelo GPS, a ilustração da paisagem rural e o botão
-// "Salvar". Ao salvar, devolve a Propriedade preenchida para a tela anterior.
+// tamanho da área (opcional) e a localização obtida pelo GPS ou marcada no
+// mapa, a ilustração da paisagem rural e o botão "Salvar". Ao salvar,
+// devolve a Propriedade preenchida para a tela anterior.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,6 +16,7 @@ import '../models/propriedade.dart';
 import '../services/localizacao_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/seletor_localizacao.dart';
+import 'selecionar_local_mapa_screen.dart';
 
 class CadastroPropriedadeScreen extends StatefulWidget {
   const CadastroPropriedadeScreen({
@@ -51,6 +52,8 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
     super.dispose();
   }
 
+  // ---------- Validações ----------
+
   String? _validarNome(String? valor) {
     final nome = valor?.trim() ?? '';
     if (nome.isEmpty) return 'Informe o nome da propriedade';
@@ -81,6 +84,8 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
     return double.tryParse(texto.trim().replaceAll(',', '.'));
   }
 
+  // ---------- Localização ----------
+
   Future<void> _buscarLocalizacao(FormFieldState<Coordenada> campo) async {
     setState(() {
       _buscandoLocalizacao = true;
@@ -108,6 +113,23 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
     }
   }
 
+  // Alternativa ao GPS: a tela do mapa devolve uma Coordenada, o mesmo tipo
+  // que o GPS devolve, então o resto do cadastro não muda.
+  Future<void> _marcarNoMapa(FormFieldState<Coordenada> campo) async {
+    final coordenada = await Navigator.of(context).push<Coordenada>(
+      MaterialPageRoute(
+        builder: (_) =>
+            SelecionarLocalMapaScreen(localizacaoInicial: campo.value),
+      ),
+    );
+    if (coordenada == null || !mounted) return;
+    setState(() => _erroLocalizacao = null);
+    campo.didChange(coordenada);
+    campo.validate();
+  }
+
+  // ---------- Salvar ----------
+
   void _salvar() {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
@@ -123,6 +145,8 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
     Navigator.of(context).pop(propriedade);
   }
 
+  // ---------- Tela ----------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -137,184 +161,181 @@ class _CadastroPropriedadeScreenState extends State<CadastroPropriedadeScreen> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
       ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 430),
-            // Mesmo esquema da tela de login: o minHeight faz a coluna ocupar
-            // no mínimo a tela inteira e o spaceBetween empurra a paisagem
-            // para o fundo. Em telas baixas ela fica depois do botão
-            // "Salvar" e rola junto, sem sobrepor.
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
+      body: _layoutComPaisagem(
+        Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _textoIntroducao(),
+              const SizedBox(height: 24),
+              _campoNome(),
+              const SizedBox(height: 20),
+              _campoCultivo(),
+              const SizedBox(height: 20),
+              _campoEstagio(),
+              const SizedBox(height: 20),
+              _campoArea(),
+              const SizedBox(height: 20),
+              _campoLocalizacao(),
+              const SizedBox(height: 32),
+              _botaoSalvar(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Mesmo esquema da tela de login: o minHeight faz a coluna ocupar no
+  // mínimo a tela inteira e o spaceBetween empurra a paisagem para o fundo.
+  // Em telas baixas ela fica depois do botão "Salvar" e rola junto, sem
+  // sobrepor.
+  Widget _layoutComPaisagem(Widget formulario) {
+    return SafeArea(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(28, 4, 28, 24),
+                      child: formulario,
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(28, 4, 28, 24),
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                const Text(
-                                  'Informe os dados da sua propriedade para receber '
-                                  'alertas personalizados.',
-                                  style: TextStyle(
-                                    color: AppColors.textoSecundario,
-                                    fontSize: 14,
-                                    height: 1.4,
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                _CampoComRotulo(
-                                  rotulo: 'Nome da propriedade',
-                                  child: TextFormField(
-                                    controller: _nomeController,
-                                    textCapitalization:
-                                        TextCapitalization.words,
-                                    textInputAction: TextInputAction.next,
-                                    inputFormatters: [
-                                      LengthLimitingTextInputFormatter(
-                                        _tamanhoMaximoNome,
-                                      ),
-                                    ],
-                                    decoration: _decoracao(
-                                      'Ex.: Sítio Boa Vista',
-                                    ),
-                                    validator: _validarNome,
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                _CampoComRotulo(
-                                  rotulo: 'Tipo de cultivo',
-                                  child: DropdownButtonFormField<TipoCultivo>(
-                                    initialValue: _cultivo,
-                                    isExpanded: true,
-                                    hint: const Text(
-                                      'Selecione o tipo de cultivo',
-                                    ),
-                                    icon: const Icon(Icons.keyboard_arrow_down),
-                                    decoration: _decoracao(null),
-                                    items: [
-                                      for (final cultivo in TipoCultivo.values)
-                                        DropdownMenuItem(
-                                          value: cultivo,
-                                          child: Text(cultivo.rotulo),
-                                        ),
-                                    ],
-                                    onChanged: (valor) =>
-                                        setState(() => _cultivo = valor),
-                                    validator: _validarCultivo,
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                _CampoComRotulo(
-                                  rotulo: 'Estágio da lavoura',
-                                  complemento: '(opcional)',
-                                  child:
-                                      DropdownButtonFormField<EstagioLavoura>(
-                                        initialValue: _estagio,
-                                        isExpanded: true,
-                                        hint: const Text(
-                                          'Selecione o estágio atual',
-                                        ),
-                                        icon: const Icon(
-                                          Icons.keyboard_arrow_down,
-                                        ),
-                                        decoration: _decoracao(null),
-                                        items: [
-                                          for (final estagio
-                                              in EstagioLavoura.values)
-                                            DropdownMenuItem(
-                                              value: estagio,
-                                              child: Text(estagio.rotulo),
-                                            ),
-                                        ],
-                                        onChanged: (valor) =>
-                                            setState(() => _estagio = valor),
-                                      ),
-                                ),
-                                const SizedBox(height: 20),
-                                _CampoComRotulo(
-                                  rotulo: 'Tamanho da área',
-                                  complemento: '(opcional)',
-                                  child: TextFormField(
-                                    controller: _areaController,
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                          decimal: true,
-                                        ),
-                                    textInputAction: TextInputAction.done,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.allow(
-                                        RegExp(r'^\d{0,6}([.,]\d{0,2})?'),
-                                      ),
-                                    ],
-                                    decoration: _decoracao(
-                                      'Ex.: 5 hectares',
-                                    ).copyWith(suffixText: 'ha'),
-                                    validator: _validarArea,
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                _CampoComRotulo(
-                                  rotulo: 'Localização da propriedade',
-                                  child: FormField<Coordenada>(
-                                    key: _localizacaoKey,
-                                    validator: _validarLocalizacao,
-                                    builder: (campo) => SeletorLocalizacao(
-                                      localizacao: campo.value,
-                                      carregando: _buscandoLocalizacao,
-                                      mensagemErro:
-                                          _erroLocalizacao ?? campo.errorText,
-                                      onBuscar: () => _buscarLocalizacao(campo),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 32),
-                                SizedBox(
-                                  height: 52,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.verde,
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    onPressed: _salvar,
-                                    child: const Text(
-                                      'Salvar',
-                                      style: TextStyle(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        Image.asset(
-                          'assets/images/paisagem_morros.png',
-                          width: double.infinity,
-                          fit: BoxFit.fitWidth,
-                        ),
-                      ],
+                    Image.asset(
+                      'assets/images/paisagem_morros.png',
+                      width: double.infinity,
+                      fit: BoxFit.fitWidth,
                     ),
-                  ),
-                );
-              },
+                  ],
+                ),
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _textoIntroducao() {
+    return const Text(
+      'Informe os dados da sua propriedade para receber alertas '
+      'personalizados.',
+      style: TextStyle(
+        color: AppColors.textoSecundario,
+        fontSize: 14,
+        height: 1.4,
+      ),
+    );
+  }
+
+  Widget _campoNome() {
+    return _CampoComRotulo(
+      rotulo: 'Nome da propriedade',
+      child: TextFormField(
+        controller: _nomeController,
+        textCapitalization: TextCapitalization.words,
+        textInputAction: TextInputAction.next,
+        inputFormatters: [LengthLimitingTextInputFormatter(_tamanhoMaximoNome)],
+        decoration: _decoracao('Ex.: Sítio Boa Vista'),
+        validator: _validarNome,
+      ),
+    );
+  }
+
+  Widget _campoCultivo() {
+    return _CampoComRotulo(
+      rotulo: 'Tipo de cultivo',
+      child: DropdownButtonFormField<TipoCultivo>(
+        initialValue: _cultivo,
+        isExpanded: true,
+        hint: const Text('Selecione o tipo de cultivo'),
+        icon: const Icon(Icons.keyboard_arrow_down),
+        decoration: _decoracao(null),
+        items: [
+          for (final cultivo in TipoCultivo.values)
+            DropdownMenuItem(value: cultivo, child: Text(cultivo.rotulo)),
+        ],
+        onChanged: (valor) => setState(() => _cultivo = valor),
+        validator: _validarCultivo,
+      ),
+    );
+  }
+
+  Widget _campoEstagio() {
+    return _CampoComRotulo(
+      rotulo: 'Estágio da lavoura',
+      complemento: '(opcional)',
+      child: DropdownButtonFormField<EstagioLavoura>(
+        initialValue: _estagio,
+        isExpanded: true,
+        hint: const Text('Selecione o estágio atual'),
+        icon: const Icon(Icons.keyboard_arrow_down),
+        decoration: _decoracao(null),
+        items: [
+          for (final estagio in EstagioLavoura.values)
+            DropdownMenuItem(value: estagio, child: Text(estagio.rotulo)),
+        ],
+        onChanged: (valor) => setState(() => _estagio = valor),
+      ),
+    );
+  }
+
+  Widget _campoArea() {
+    return _CampoComRotulo(
+      rotulo: 'Tamanho da área',
+      complemento: '(opcional)',
+      child: TextFormField(
+        controller: _areaController,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        textInputAction: TextInputAction.done,
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'^\d{0,6}([.,]\d{0,2})?')),
+        ],
+        decoration: _decoracao('Ex.: 5 hectares').copyWith(suffixText: 'ha'),
+        validator: _validarArea,
+      ),
+    );
+  }
+
+  Widget _campoLocalizacao() {
+    return _CampoComRotulo(
+      rotulo: 'Localização da propriedade',
+      child: FormField<Coordenada>(
+        key: _localizacaoKey,
+        validator: _validarLocalizacao,
+        builder: (campo) => SeletorLocalizacao(
+          localizacao: campo.value,
+          carregando: _buscandoLocalizacao,
+          mensagemErro: _erroLocalizacao ?? campo.errorText,
+          onBuscar: () => _buscarLocalizacao(campo),
+          onMarcarNoMapa: () => _marcarNoMapa(campo),
+        ),
+      ),
+    );
+  }
+
+  Widget _botaoSalvar() {
+    return SizedBox(
+      height: 52,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.verde,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: _salvar,
+        child: const Text(
+          'Salvar',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
         ),
       ),
     );
