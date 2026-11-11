@@ -1,8 +1,8 @@
 // Vinicius Santuci Virgolino - 25000294
 // Data: 13/10/26
-// Descrição: Cartão que mostra a localização da propriedade e o botão para
-// capturá-la pelo GPS. Exibe os estados: sem localização, buscando,
-// localização registrada e erro.
+// Descrição: Cartão que mostra a localização da propriedade e os botões para
+// capturá-la pelo GPS ou marcá-la no mapa. Exibe os estados: sem
+// localização, buscando, localização registrada e erro.
 
 import 'package:flutter/material.dart';
 
@@ -15,12 +15,15 @@ class SeletorLocalizacao extends StatelessWidget {
     required this.localizacao,
     required this.carregando,
     required this.onBuscar,
+    required this.onMarcarNoMapa,
     this.mensagemErro,
   });
 
   final Coordenada? localizacao;
   final bool carregando;
   final VoidCallback onBuscar;
+  // Alternativa para quando o GPS falha ou o produtor não está na propriedade.
+  final VoidCallback onMarcarNoMapa;
   final String? mensagemErro;
 
   @override
@@ -49,14 +52,29 @@ class SeletorLocalizacao extends StatelessWidget {
                 jaPossuiLocalizacao: localizacao != null,
                 onPressed: onBuscar,
               ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 44,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.verde,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: carregando ? null : onMarcarNoMapa,
+                  icon: const Icon(Icons.map_outlined),
+                  label: const Text('Marcar no mapa'),
+                ),
+              ),
             ],
           ),
         ),
         const SizedBox(height: 6),
         Text(
           mensagemErro ??
-              'Faça o cadastro estando na propriedade para que os alertas '
-                  'sejam precisos.',
+              'Use o GPS estando na propriedade ou marque o local no mapa '
+                  'para que os alertas sejam precisos.',
           style: TextStyle(
             fontSize: 12,
             color: temErro ? AppColors.erro : AppColors.textoSecundario,
