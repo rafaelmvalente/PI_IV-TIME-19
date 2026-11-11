@@ -21,7 +21,8 @@ class DetalheAlertaScreen extends StatefulWidget {
 
   final Alerta alerta;
 
-  // Salva o novo status e devolve o alerta atualizado.
+  // Salva o novo status e devolve o alerta atualizado. Se não for informado,
+  // usa o AlertaService (hoje com alertas de exemplo, até o backend: P010).
   final Future<Alerta> Function(StatusAlerta status)? atualizarStatus;
 
   @override

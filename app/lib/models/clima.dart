@@ -15,7 +15,8 @@ class ClimaHoje {
   final double minima;
   final String descricao;
 
-  // Converte a representação JSON usada pelo cache offline.
+  // Usado pelo cache offline. Os nomes dos campos podem mudar quando o
+  // contrato da API for definido (P010).
   factory ClimaHoje.fromJson(Map<String, dynamic> json) {
     return ClimaHoje(
       temperatura: (json['temperatura'] as num).toDouble(),

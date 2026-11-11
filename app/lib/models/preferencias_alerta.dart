@@ -31,4 +31,6 @@ class PreferenciasAlerta {
       sms: sms ?? this.sms,
     );
   }
+
+  // TODO(P022): fromJson/toJson conforme o contrato da API (P010).
 }

@@ -1,6 +1,8 @@
 // Caique Vasconcelos Naimi - 25004208
 // Data: 03/11/2026
-// Descrição: Consulta alertas de exemplo, histórico e status em memória.
+// Descrição: Consulta alertas, histórico e atualiza o status da ação tomada
+// pelo produtor. Enquanto o backend não existe (P010), usa os alertas de
+// exemplo guardados na memória do app.
 
 import '../data/alertas_exemplo.dart';
 import '../models/alerta.dart';
@@ -8,7 +10,8 @@ import '../models/alerta.dart';
 class AlertaService {
   const AlertaService();
 
-  // Dados de exemplo compartilhados pelo serviço durante a execução do app.
+  // shortcut: alertas de exemplo em memória, iguais para qualquer propriedade
+  // e perdidos ao fechar o app; trocar pelas chamadas ao backend (P021/P010).
   static final List<Alerta> _alertas = [
     ...alertasDeExemplo(DateTime.now()),
     ...historicoDeExemplo(DateTime.now()),

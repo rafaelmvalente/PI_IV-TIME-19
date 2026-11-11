@@ -1,6 +1,6 @@
-// Nome: Rafael Mendes Valente - RA: 25002875
-// Dia: 11/11/2026
-// Descrição: Representa o produtor rural e os dados da conta.
+// Estrutura criada em 28/10/26 — implementação pendente (responsável: a definir)
+// Descrição: Produtor rural dono da conta. O telefone é necessário para o
+// envio de alertas críticos por SMS.
 
 class Usuario {
   const Usuario({
@@ -14,4 +14,6 @@ class Usuario {
   final String nome;
   final String? email;
   final String? telefone;
+
+  // TODO(P022): fromJson/toJson conforme o contrato da API (P010).
 }

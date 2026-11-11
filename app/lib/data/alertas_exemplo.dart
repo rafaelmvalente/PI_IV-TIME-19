@@ -1,6 +1,8 @@
 // Caique Vasconcelos Naimi - 25004208
 // Data: 28/10/2026
-// Descrição: Fornece alertas de exemplo para testes e prévias do aplicativo.
+// Descrição: Alertas de exemplo (iguais aos do protótipo). O AlertaService usa
+// estes dados enquanto o backend não existe (P010); os testes e a prévia
+// também usam.
 
 import 'package:app/models/alerta.dart';
 import 'package:app/models/recomendacao.dart';

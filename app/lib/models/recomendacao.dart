@@ -15,7 +15,8 @@ class Recomendacao {
   final String detalhe;
   final List<String> dicas;
 
-  // Converte a representação JSON usada pelo cache offline.
+  // Usado pelo cache offline. Os nomes dos campos podem mudar quando o
+  // contrato da API for definido (P010).
   factory Recomendacao.fromJson(Map<String, dynamic> json) {
     return Recomendacao(
       acao: json['acao'] as String,

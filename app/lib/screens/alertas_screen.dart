@@ -13,7 +13,8 @@ import 'detalhe_alerta_screen.dart';
 // StatefulWidget porque a tela muda enquanto está aberta: o filtro escolhido
 // e o resultado do carregamento dos alertas.
 class AlertasScreen extends StatefulWidget {
-  // A origem dos alertas é definida pelo chamador da tela.
+  // Quem abre a tela decide de onde vêm os alertas. No app é o AlertaService,
+  // que usa alertas de exemplo até o backend existir (P010).
   const AlertasScreen({super.key, required this.carregarAlertas});
 
   final Future<List<Alerta>> Function() carregarAlertas;

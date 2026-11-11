@@ -1,5 +1,6 @@
 // Data: 28/10/2026
-// Descrição: Mantém em memória as contas usadas pelo login e pelo cadastro.
+// Descrição: Contas do produtor usadas pelo login e pela criação de conta.
+// Enquanto o backend não existe (P010), as contas ficam só na memória do app.
 
 import '../models/propriedade.dart';
 
@@ -18,7 +19,7 @@ class Conta {
 }
 
 class AuthService {
-  // As contas permanecem disponíveis até o encerramento do aplicativo.
+  // shortcut: contas em memória somem ao fechar o app; trocar pela chamada ao backend (P010).
   static final Map<String, Conta> _contas = {};
 
   // Retorna false se já existir uma conta com esse e-mail ou telefone.
@@ -53,6 +54,7 @@ class AuthService {
     conta.propriedade = propriedade;
   }
 
-  // Representa a solicitação de recuperação de senha pelo login informado.
+  // Pede o link de recuperação de senha para o e-mail ou telefone informado.
+  // shortcut: ainda não envia nada; trocar pela chamada ao backend (P010).
   static Future<void> recuperarSenha(String login) async {}
 }

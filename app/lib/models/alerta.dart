@@ -70,7 +70,9 @@ class Alerta {
     );
   }
 
-  // Converte o JSON do cache, usando os nomes dos enums e datas ISO 8601.
+  // Usado pelo cache offline. Os enums são gravados pelo nome (ex.: "geada")
+  // e a data no formato ISO 8601. Os nomes dos campos podem mudar quando o
+  // contrato da API for definido (P010).
   factory Alerta.fromJson(Map<String, dynamic> json) {
     return Alerta(
       id: json['id'] as String,
