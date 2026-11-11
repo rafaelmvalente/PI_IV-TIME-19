@@ -27,4 +27,13 @@ export const env = {
     from: process.env.SMTP_FROM,
   },
   resetPasswordUrl: process.env.APP_RESET_PASSWORD_URL,
+  // SMS dos alertas críticos (issue #16). Sem estas variáveis o envio fica desligado.
+  twilio: {
+    accountSid: process.env.TWILIO_ACCOUNT_SID,
+    authToken: process.env.TWILIO_AUTH_TOKEN,
+    // Número do Twilio (+15551234567) ou um Messaging Service SID (MG...).
+    from: process.env.TWILIO_FROM,
+  },
+  // Coleta e análise automática (issue #8). 0 desliga o agendamento.
+  coletaIntervaloMinutos: Number(process.env.COLETA_INTERVALO_MINUTOS ?? 180),
 };

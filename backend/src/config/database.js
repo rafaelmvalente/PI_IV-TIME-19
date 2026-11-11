@@ -33,6 +33,15 @@ export async function connectDatabase() {
       { atualizadoEm: 1 },
       { expireAfterSeconds: 3 * 60 * 60, name: 'clima_expira_3h' },
     ),
+    // Uma leitura por dia por propriedade, apagada após 30 dias (#11).
+    database.collection('leituras_clima').createIndex(
+      { propriedadeId: 1, data: -1 },
+      { unique: true, name: 'leituras_por_propriedade_dia' },
+    ),
+    database.collection('leituras_clima').createIndex(
+      { data: 1 },
+      { expireAfterSeconds: 30 * 24 * 60 * 60, name: 'leituras_expira_30d' },
+    ),
   ]);
 
   return database;
