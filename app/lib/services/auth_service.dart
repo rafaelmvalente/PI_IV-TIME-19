@@ -1,60 +1,87 @@
-// Data: 28/10/2026
-// Descrição: Contas do produtor usadas pelo login e pela criação de conta.
-// Enquanto o backend não existe (P010), as contas ficam só na memória do app.
+// Nome: Rafael Mendes Valente - RA: 25002875
+// Data: 11/11/2026
+// Descrição: Autentica o produtor e mantém o token de acesso da API.
 
 import '../models/propriedade.dart';
+import '../models/usuario.dart';
+import 'api_client.dart';
 
 class Conta {
-  final String login;
-  final String senha;
-  bool temPropriedade;
-  Propriedade? propriedade;
+  const Conta({required this.login, required this.usuario, this.propriedade});
 
-  Conta({
-    required this.login,
-    required this.senha,
-    this.temPropriedade = false,
-    this.propriedade,
-  });
+  final String login;
+  final Usuario usuario;
+  final Propriedade? propriedade;
+
+  bool get temPropriedade => propriedade != null;
 }
 
 class AuthService {
-  // shortcut: contas em memória somem ao fechar o app; trocar pela chamada ao backend (P010).
-  static final Map<String, Conta> _contas = {};
+  AuthService({ApiClient? api}) : _api = api ?? ApiClient();
 
-  // Retorna false se já existir uma conta com esse e-mail ou telefone.
-  static bool criarConta(String login, String senha) {
-    final chave = login.trim().toLowerCase();
-    if (_contas.containsKey(chave)) return false;
+  final ApiClient _api;
 
-    _contas[chave] = Conta(login: login.trim(), senha: senha);
-    return true;
+  Future<void> criarConta({
+    required String nome,
+    required String login,
+    required String senha,
+  }) async {
+    final normalizedLogin = login.trim();
+    final body = <String, Object>{
+      'nome': nome.trim(),
+      'senha': senha,
+      if (normalizedLogin.contains('@'))
+        'email': normalizedLogin
+      else
+        'telefone': normalizedLogin,
+    };
+    await _api.post('/auth/register', body: body);
   }
 
-  // Retorna a conta se o login e a senha conferirem; caso contrário, null.
-  static Conta? entrar(String login, String senha) {
-    final conta = _contas[login.trim().toLowerCase()];
-    if (conta == null || conta.senha != senha) return null;
-    return conta;
+  Future<Conta?> entrar(String login, String senha) async {
+    final response =
+        await _api.post(
+              '/auth/login',
+              body: {'login': login.trim(), 'senha': senha},
+            )
+            as Map<String, dynamic>;
+    final usuario = Usuario.fromJson(
+      response['usuario'] as Map<String, dynamic>,
+    );
+    await _api.salvarToken(response['token'] as String);
+
+    try {
+      final properties = await _api.get('/properties') as List<dynamic>;
+      return Conta(
+        login: login.trim(),
+        usuario: usuario,
+        propriedade: properties.isEmpty
+            ? null
+            : Propriedade.fromJson(properties.first as Map<String, dynamic>),
+      );
+    } catch (_) {
+      await _api.removerToken();
+      rethrow;
+    }
   }
 
-  static void marcarPropriedadeCadastrada(
-    Conta conta, {
-    Propriedade? propriedade,
-  }) {
-    conta.temPropriedade = true;
-    conta.propriedade = propriedade;
+  Future<void> recuperarSenha(String login) async {
+    await _api.post('/auth/forgot-password', body: {'login': login.trim()});
   }
 
-  // Guarda a propriedade editada na conta (tela de Perfil).
-  static void atualizarPropriedade(String login, Propriedade propriedade) {
-    final conta = _contas[login.trim().toLowerCase()];
-    if (conta == null) return;
-    conta.temPropriedade = true;
-    conta.propriedade = propriedade;
+  Future<void> redefinirSenha({
+    required String token,
+    required String novaSenha,
+  }) async {
+    await _api.post(
+      '/auth/reset-password',
+      body: {'token': token, 'novaSenha': novaSenha},
+    );
   }
 
-  // Pede o link de recuperação de senha para o e-mail ou telefone informado.
-  // shortcut: ainda não envia nada; trocar pela chamada ao backend (P010).
-  static Future<void> recuperarSenha(String login) async {}
+  Future<void> atualizarPreferencias(Map<String, bool> preferencias) async {
+    await _api.patch('/auth/me/preferences', body: preferencias);
+  }
+
+  Future<void> sair() => _api.removerToken();
 }

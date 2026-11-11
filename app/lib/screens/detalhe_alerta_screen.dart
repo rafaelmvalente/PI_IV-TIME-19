@@ -3,6 +3,8 @@
 // Descrição: Tela 6 do relatório — detalhe do alerta: risco, nível de
 // severidade, explicação e a ação prática sugerida. Pelo menu "..." o produtor
 // marca o status do alerta (Em andamento / Ação realizada / Resolvido).
+// Data: 11/11/2026
+// Descrição: Envia a atualização de status do alerta ao backend.
 
 import 'package:flutter/material.dart';
 
@@ -37,7 +39,7 @@ class _DetalheAlertaScreenState extends State<DetalheAlertaScreen> {
   Future<void> _mudarStatus(StatusAlerta status) async {
     final salvar =
         widget.atualizarStatus ??
-        (s) => const AlertaService().atualizarStatus(_alerta.id, s);
+        (s) => AlertaService().atualizarStatus(_alerta.id, s);
 
     // try/catch: se o salvamento falhar (ex.: sem conexão com o
     // servidor), o produtor vê uma mensagem em vez de o app travar.

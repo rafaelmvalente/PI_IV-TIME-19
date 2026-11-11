@@ -55,6 +55,26 @@ async function findOwnedProperty(req, res) {
   return property;
 }
 
+async function getPropertyForecast(database, property) {
+  const cacheCollection = database.collection('climaCache');
+  const cached = await cacheCollection.findOne({
+    _id: property._id,
+    atualizadoEm: { $gt: new Date(Date.now() - 3 * 60 * 60_000) },
+  });
+  if (cached) return cached.forecast;
+
+  const forecast = await getForecast(
+    property.localizacao.latitude,
+    property.localizacao.longitude,
+  );
+  await cacheCollection.updateOne(
+    { _id: property._id },
+    { $set: { propriedadeId: property._id, forecast, atualizadoEm: new Date() } },
+    { upsert: true },
+  );
+  return forecast;
+}
+
 router.use(authenticate);
 
 router.get('/', async (req, res) => {
@@ -123,25 +143,17 @@ router.delete('/:id', async (req, res) => {
   return res.status(204).end();
 });
 
+router.get('/:id/weather/forecast', async (req, res) => {
+  const property = await findOwnedProperty(req, res);
+  if (!property) return;
+  const forecast = await getPropertyForecast(req.db, property);
+  return res.json(forecast);
+});
+
 router.get('/:id/weather/today', async (req, res) => {
   const property = await findOwnedProperty(req, res);
   if (!property) return;
-  const cacheCollection = req.db.collection('climaCache');
-  const cached = await cacheCollection.findOne({
-    _id: property._id,
-    atualizadoEm: { $gt: new Date(Date.now() - 3 * 60 * 60_000) },
-  });
-  const forecast = cached?.forecast ?? await getForecast(
-    property.localizacao.latitude,
-    property.localizacao.longitude,
-  );
-  if (!cached) {
-    await cacheCollection.updateOne(
-      { _id: property._id },
-      { $set: { propriedadeId: property._id, forecast, atualizadoEm: new Date() } },
-      { upsert: true },
-    );
-  }
+  const forecast = await getPropertyForecast(req.db, property);
   return res.json(toTodayWeather(forecast));
 });
 

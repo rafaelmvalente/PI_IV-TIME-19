@@ -1,42 +1,129 @@
 // Caique Vasconcelos Naimi - 25004208
 // Data: 03/11/2026
-// Descrição: Consulta alertas, histórico e atualiza o status da ação tomada
-// pelo produtor. Enquanto o backend não existe (P010), usa os alertas de
-// exemplo guardados na memória do app.
+// Descrição: Serviço de consulta e atualização de alertas.
+// Data: 11/11/2026
+// Descrição: Integra alertas ao backend e usa o cache local quando não há rede.
 
-import '../data/alertas_exemplo.dart';
 import '../models/alerta.dart';
+import 'api_client.dart';
+import 'armazenamento_local_service.dart';
 
 class AlertaService {
-  const AlertaService();
+  AlertaService({ApiClient? api, ArmazenamentoLocalService? local})
+    : _api = api ?? ApiClient(),
+      _local = local ?? const ArmazenamentoLocalService();
 
-  // shortcut: alertas de exemplo em memória, iguais para qualquer propriedade
-  // e perdidos ao fechar o app; trocar pelas chamadas ao backend (P021/P010).
-  static final List<Alerta> _alertas = [
-    ...alertasDeExemplo(DateTime.now()),
-    ...historicoDeExemplo(DateTime.now()),
-  ];
+  final ApiClient _api;
+  final ArmazenamentoLocalService _local;
 
-  // Alertas de hoje em diante, do mais próximo para o mais distante.
   Future<List<Alerta>> listar(String propriedadeId, {TipoAlerta? tipo}) async {
-    final agora = DateTime.now();
-    final hoje = DateTime(agora.year, agora.month, agora.day);
-    return _alertas
-        .where((a) => !a.previstoPara.isBefore(hoje))
-        .where((a) => tipo == null || a.tipo == tipo)
-        .toList()
-      ..sort((a, b) => a.previstoPara.compareTo(b.previstoPara));
+    if (propriedadeId.isEmpty) return [];
+    try {
+      final result =
+          await _api.get(
+                '/alerts',
+                queryParameters: {
+                  'propriedadeId': propriedadeId,
+                  'periodo': 'proximos',
+                  if (tipo != null) 'tipo': tipo.name,
+                },
+              )
+              as List<dynamic>;
+      final alerts = [
+        for (final item in result)
+          Alerta.fromJson(item as Map<String, dynamic>),
+      ];
+      await _salvarCache(propriedadeId, alerts);
+      return alerts;
+    } on ApiException catch (error) {
+      if (error.statusCode != 0) rethrow;
+      final cached = await _alertasEmCache(propriedadeId);
+      if (cached.isEmpty) rethrow;
+      return cached
+          .where((alerta) => !alerta.previstoPara.isBefore(DateTime.now()))
+          .where((alerta) => tipo == null || alerta.tipo == tipo)
+          .toList()
+        ..sort((a, b) => a.previstoPara.compareTo(b.previstoPara));
+    }
   }
 
-  // Todos os alertas, do mais recente para o mais antigo.
   Future<List<Alerta>> listarHistorico(String propriedadeId) async {
-    return [..._alertas]
-      ..sort((a, b) => b.previstoPara.compareTo(a.previstoPara));
+    if (propriedadeId.isEmpty) return [];
+    try {
+      final result =
+          await _api.get(
+                '/alerts',
+                queryParameters: {
+                  'propriedadeId': propriedadeId,
+                  'periodo': 'historico',
+                },
+              )
+              as List<dynamic>;
+      final alerts = [
+        for (final item in result)
+          Alerta.fromJson(item as Map<String, dynamic>),
+      ];
+      await _salvarCache(propriedadeId, alerts);
+      return alerts;
+    } on ApiException catch (error) {
+      if (error.statusCode != 0) rethrow;
+      final cached = await _alertasEmCache(propriedadeId);
+      if (cached.isEmpty) rethrow;
+      return cached
+          .where((alerta) => alerta.previstoPara.isBefore(DateTime.now()))
+          .toList()
+        ..sort((a, b) => b.previstoPara.compareTo(a.previstoPara));
+    }
   }
 
   Future<Alerta> atualizarStatus(String alertaId, StatusAlerta status) async {
-    final i = _alertas.indexWhere((a) => a.id == alertaId);
-    if (i == -1) throw StateError('Alerta $alertaId não encontrado');
-    return _alertas[i] = _alertas[i].copyWith(status: status);
+    try {
+      final json =
+          await _api.patch(
+                '/alerts/$alertaId/status',
+                body: {'status': status.name},
+              )
+              as Map<String, dynamic>;
+      final updated = Alerta.fromJson(json);
+      final cached = await _local.lerAlertas();
+      final alerts = [
+        for (final alert in cached)
+          if (alert.id == updated.id) updated else alert,
+      ];
+      if (!alerts.any((alert) => alert.id == updated.id)) {
+        alerts.add(updated);
+      }
+      await _local.salvarAlertas(alerts);
+      return updated;
+    } on ApiException catch (error) {
+      if (error.statusCode == 0) {
+        throw const ApiException(
+          statusCode: 0,
+          code: 'ALERT_STATUS_OFFLINE',
+          message: 'Conecte-se à internet para atualizar o status do alerta.',
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<List<Alerta>> _alertasEmCache(String propriedadeId) async {
+    return (await _local.lerAlertas())
+        .where((alerta) => alerta.propriedadeId == propriedadeId)
+        .toList();
+  }
+
+  Future<void> _salvarCache(
+    String propriedadeId,
+    List<Alerta> atualizados,
+  ) async {
+    final previous = await _local.lerAlertas();
+    final updatedIds = atualizados.map((alerta) => alerta.id).toSet();
+    final retained = previous.where(
+      (alerta) =>
+          alerta.propriedadeId != propriedadeId ||
+          !updatedIds.contains(alerta.id),
+    );
+    await _local.salvarAlertas([...retained, ...atualizados]);
   }
 }

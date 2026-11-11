@@ -3,6 +3,8 @@
 // Descrição: Tela 8 do relatório — histórico de todos os alertas recebidos,
 // agrupados por mês, com o status de cada um (Em andamento, Ação realizada,
 // Resolvido) e filtro por tipo. Tocar em um alerta abre o detalhe.
+// Data: 11/11/2026
+// Descrição: Consulta o histórico da propriedade escolhida no dashboard.
 
 import 'package:flutter/material.dart';
 
@@ -15,9 +17,14 @@ import 'detalhe_alerta_screen.dart';
 class HistoricoScreen extends StatefulWidget {
   // Quem abre a tela pode trocar de onde vem o histórico (útil nos testes).
   // Sem informar, usa o AlertaService.
-  const HistoricoScreen({super.key, this.carregarHistorico});
+  const HistoricoScreen({
+    super.key,
+    this.carregarHistorico,
+    this.propriedadeId = '',
+  });
 
   final Future<List<Alerta>> Function()? carregarHistorico;
+  final String propriedadeId;
 
   @override
   State<HistoricoScreen> createState() => _HistoricoScreenState();
@@ -51,7 +58,7 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
   void _carregar() {
     final carregar =
         widget.carregarHistorico ??
-        () => const AlertaService().listarHistorico('');
+        () => AlertaService().listarHistorico(widget.propriedadeId);
     // Future.sync: um erro lançado na hora vira um Future com erro, e o
     // FutureBuilder mostra a mensagem em vez de quebrar a tela.
     _historico = Future.sync(carregar);

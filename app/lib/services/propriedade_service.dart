@@ -1,24 +1,36 @@
-// Estrutura criada em 28/10/26 — implementação pendente (responsável: a definir)
-// Descrição: Salva e consulta a propriedade do produtor no backend
-// (endpoints a definir, P010).
+// Nome: Rafael Mendes Valente - RA: 25002875
+// Data: 11/11/2026
+// Descrição: Consulta e persiste as propriedades do produtor autenticado.
 
 import '../models/propriedade.dart';
+import 'api_client.dart';
 
 class PropriedadeService {
   const PropriedadeService();
 
-  // TODO(P021): salvar no backend (chamado ao salvar o cadastro, P026).
-  Future<Propriedade> salvar(Propriedade propriedade) {
-    throw UnimplementedError('P021: salvar propriedade não implementado');
+  static final ApiClient _api = ApiClient();
+
+  Future<Propriedade> salvar(Propriedade propriedade) async {
+    final json =
+        await _api.post('/properties', body: propriedade.toJson())
+            as Map<String, dynamic>;
+    return Propriedade.fromJson(json);
   }
 
-  // TODO(P021): buscar as propriedades do usuário logado.
-  Future<List<Propriedade>> listarMinhas() {
-    throw UnimplementedError('P021: listar propriedades não implementado');
+  Future<List<Propriedade>> listarMinhas() async {
+    final result = await _api.get('/properties') as List<dynamic>;
+    return [
+      for (final item in result)
+        Propriedade.fromJson(item as Map<String, dynamic>),
+    ];
   }
 
-  // TODO(P033): enviar a edição feita na tela de Perfil.
-  Future<Propriedade> atualizar(String id, Propriedade propriedade) {
-    throw UnimplementedError('P033: editar propriedade não implementado');
+  Future<Propriedade> atualizar(String id, Propriedade propriedade) async {
+    final json =
+        await _api.patch('/properties/$id', body: propriedade.toPatchJson())
+            as Map<String, dynamic>;
+    return Propriedade.fromJson(json);
   }
+
+  Future<void> remover(String id) => _api.delete('/properties/$id');
 }

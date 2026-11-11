@@ -2,6 +2,8 @@
 // Data: 28/10/2026
 // Descrição: Testes de widget das telas 5, 6 e 7 (lista, detalhe e
 // recomendações de alertas) e da formatação da data dos alertas.
+// Data: 11/11/2026
+// Descrição: Injeta atualização simulada do status do alerta.
 
 import 'package:app/models/alerta.dart';
 import 'package:app/screens/alertas_screen.dart';
@@ -12,8 +14,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:app/data/alertas_exemplo.dart';
 
 void main() {
-  Widget tela(Future<List<Alerta>> Function() carregar) =>
-      MaterialApp(home: AlertasScreen(carregarAlertas: carregar));
+  Widget tela(Future<List<Alerta>> Function() carregar) => MaterialApp(
+    home: AlertasScreen(
+      carregarAlertas: carregar,
+      atualizarStatus: (alerta, status) async =>
+          alerta.copyWith(status: status),
+    ),
+  );
 
   testWidgets('lista todos e o filtro "Geada" mostra só geada', (tester) async {
     await tester.pumpWidget(tela(() async => alertasDeExemplo(DateTime.now())));
@@ -40,12 +47,14 @@ void main() {
 
   testWidgets('mostra erro e tenta de novo', (tester) async {
     var tentativas = 0;
-    await tester.pumpWidget(tela(() {
-      tentativas++;
-      // Igual ao AlertaService sem backend: lança o erro na hora.
-      if (tentativas == 1) throw UnimplementedError();
-      return Future.value(alertasDeExemplo(DateTime.now()));
-    }));
+    await tester.pumpWidget(
+      tela(() {
+        tentativas++;
+        // Igual ao AlertaService sem backend: lança o erro na hora.
+        if (tentativas == 1) throw UnimplementedError();
+        return Future.value(alertasDeExemplo(DateTime.now()));
+      }),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Tentar de novo'), findsOneWidget);
@@ -66,8 +75,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Alto'), findsOneWidget);
-    expect(find.textContaining('A temperatura pode cair para 2°C'),
-        findsOneWidget);
+    expect(
+      find.textContaining('A temperatura pode cair para 2°C'),
+      findsOneWidget,
+    );
     expect(find.textContaining('Proteja as mudas. Cubra'), findsOneWidget);
 
     await tester.tap(find.text('Ver outras orientações'));
@@ -100,11 +111,17 @@ void main() {
   test('formatarQuando usa Hoje/Amanhã e o mês abreviado', () {
     final agora = DateTime(2025, 8, 22, 9);
 
-    expect(formatarQuando(DateTime(2025, 8, 22, 6), agora: agora),
-        'Hoje, 22 de ago · 06:00');
-    expect(formatarQuando(DateTime(2025, 8, 23, 14), agora: agora),
-        'Amanhã, 23 de ago · 14:00');
-    expect(formatarQuando(DateTime(2025, 8, 25, 10, 5), agora: agora),
-        '25 de ago · 10:05');
+    expect(
+      formatarQuando(DateTime(2025, 8, 22, 6), agora: agora),
+      'Hoje, 22 de ago · 06:00',
+    );
+    expect(
+      formatarQuando(DateTime(2025, 8, 23, 14), agora: agora),
+      'Amanhã, 23 de ago · 14:00',
+    );
+    expect(
+      formatarQuando(DateTime(2025, 8, 25, 10, 5), agora: agora),
+      '25 de ago · 10:05',
+    );
   });
 }

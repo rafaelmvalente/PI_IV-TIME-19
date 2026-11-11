@@ -9,6 +9,8 @@
 //   sessao.login          // e-mail ou telefone de quem entrou
 //   sessao.propriedade    // Propriedade atual (pode ser null)
 //   sessao.preferencias   // texto / voz / SMS
+// Data: 11/11/2026
+// Descrição: Mantém na sessão os dados retornados pela API autenticada.
 
 import 'package:flutter/widgets.dart';
 
@@ -17,12 +19,14 @@ import '../models/propriedade.dart';
 
 class SessaoController extends ChangeNotifier {
   String? _login;
+  String? _nome;
   Propriedade? _propriedade;
   PreferenciasAlerta _preferencias = PreferenciasAlerta.padrao;
   bool _carregando = false;
   String? _erro;
 
   String? get login => _login;
+  String? get nome => _nome;
   Propriedade? get propriedade => _propriedade;
   PreferenciasAlerta get preferencias => _preferencias;
   bool get carregando => _carregando;
@@ -30,9 +34,16 @@ class SessaoController extends ChangeNotifier {
   bool get logado => _login != null;
 
   /// Chamar quando o login der certo.
-  void entrar({required String login, Propriedade? propriedade}) {
+  void entrar({
+    required String login,
+    String? nome,
+    Propriedade? propriedade,
+    PreferenciasAlerta? preferencias,
+  }) {
     _login = login;
+    _nome = nome;
     _propriedade = propriedade;
+    _preferencias = preferencias ?? PreferenciasAlerta.padrao;
     _carregando = false;
     _erro = null;
     notifyListeners();
@@ -62,6 +73,7 @@ class SessaoController extends ChangeNotifier {
   /// Limpa tudo, inclusive as preferências.
   void sair() {
     _login = null;
+    _nome = null;
     _propriedade = null;
     _preferencias = PreferenciasAlerta.padrao;
     _carregando = false;

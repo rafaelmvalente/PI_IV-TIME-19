@@ -2,6 +2,8 @@
 // Data: 28/10/2026
 // Descrição: Como o produtor quer receber os alertas: texto, voz e/ou SMS
 // quando estiver sem internet (tela de Perfil / Configurações).
+// Data: 11/11/2026
+// Descrição: Serializa as preferências conforme o contrato da API.
 
 class PreferenciasAlerta {
   const PreferenciasAlerta({
@@ -32,5 +34,15 @@ class PreferenciasAlerta {
     );
   }
 
-  // TODO(P022): fromJson/toJson conforme o contrato da API (P010).
+  factory PreferenciasAlerta.fromJson(Map<String, dynamic> json) {
+    return PreferenciasAlerta(
+      texto: json['texto'] as bool,
+      voz: json['voz'] as bool,
+      sms: json['sms'] as bool,
+    );
+  }
+
+  Map<String, bool> toJson() {
+    return {'texto': texto, 'voz': voz, 'sms': sms};
+  }
 }

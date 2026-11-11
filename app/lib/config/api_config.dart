@@ -1,8 +1,8 @@
-// Estrutura criada em 28/10/26 — implementação pendente (responsável: a definir)
-// Descrição: Endereço do backend consumido pelo app (backend ainda a definir).
+// Nome: Rafael Mendes Valente - RA: 25002875
+// Data: 11/11/2026
+// Descrição: Define o endereço base da API do ClimAlerta por ambiente.
 
 abstract final class ApiConfig {
-  // TODO(P019): definir a URL por ambiente (ex.: --dart-define=API_URL=...).
-  // Não há valor padrão de propósito: o backend ainda não foi definido.
+  // Configure com --dart-define=API_URL=http://host:3000/api/v1.
   static const String baseUrl = String.fromEnvironment('API_URL');
 }

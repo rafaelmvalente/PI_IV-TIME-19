@@ -5,14 +5,18 @@
 // saudação ao produtor e a propriedade, o clima de hoje, o alerta em destaque
 // e a lista dos próximos alertas previstos, além da barra de navegação
 // inferior, que troca entre as abas Início, Alertas, Histórico e Perfil.
-// O clima é fixo (exemplo) e os alertas vêm do AlertaService até a
-// integração com o servidor.
+// Consulta a previsão, os alertas, o histórico e o perfil no backend.
+// Nome: Rafael Mendes Valente - RA: 25002875
+// Data: 11/11/2026
+// Descrição: Carrega clima e alertas reais da propriedade pela API.
 
 import 'package:flutter/material.dart';
 
 import '../models/alerta.dart';
+import '../models/clima.dart';
 import '../models/propriedade.dart';
 import '../services/alerta_service.dart';
+import '../services/clima_service.dart';
 import '../session/sessao.dart';
 import '../widgets/alerta_visual.dart';
 import 'alertas_screen.dart';
@@ -22,12 +26,23 @@ import 'modo_offline_screen.dart';
 import 'perfil_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  // A propriedade é opcional (?) porque o dashboard também abre pelo login,
-  // onde ainda não há propriedade cadastrada. Nesse caso, mostra o nome de
-  // exemplo.
-  const DashboardScreen({super.key, this.propriedade});
+  // A propriedade pode ser nula quando o produtor ainda não cadastrou nenhuma.
+  const DashboardScreen({
+    super.key,
+    this.propriedade,
+    this.carregarAlertas,
+    this.carregarHistorico,
+    this.carregarPrevisao,
+    this.atualizarStatusAlerta,
+  });
 
   final Propriedade? propriedade;
+  final Future<List<Alerta>> Function(String propriedadeId)? carregarAlertas;
+  final Future<List<Alerta>> Function(String propriedadeId)? carregarHistorico;
+  final Future<PrevisaoClimatica> Function(String propriedadeId)?
+  carregarPrevisao;
+  final Future<Alerta> Function(Alerta alerta, StatusAlerta status)?
+  atualizarStatusAlerta;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -46,14 +61,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   int _aba = _abaInicio;
 
-  // Próximos alertas da propriedade, buscados uma vez ao abrir a tela.
-  final Future<List<Alerta>> _alertas = const AlertaService().listar('');
+  String? _propriedadeCarregada;
+  String? _propriedadeIdAtual;
+  Future<List<Alerta>> _alertas = Future.value(const <Alerta>[]);
+  Future<PrevisaoClimatica>? _previsao;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final propriedadeId =
+        SessaoScope.of(context).propriedade?.id ?? widget.propriedade?.id;
+    if (_propriedadeCarregada == propriedadeId) return;
+
+    _propriedadeCarregada = propriedadeId;
+    _propriedadeIdAtual = propriedadeId;
+    if (propriedadeId == null) {
+      _alertas = Future.value(const <Alerta>[]);
+      _previsao = null;
+    } else {
+      _alertas =
+          widget.carregarAlertas?.call(propriedadeId) ??
+          AlertaService().listar(propriedadeId);
+      _previsao =
+          widget.carregarPrevisao?.call(propriedadeId) ??
+          const ClimaService().previsao(propriedadeId);
+    }
+  }
+
+  void _recarregarDados() {
+    final id = _propriedadeIdAtual;
+    if (id == null) return;
+    setState(() {
+      _alertas = widget.carregarAlertas?.call(id) ?? AlertaService().listar(id);
+      _previsao =
+          widget.carregarPrevisao?.call(id) ??
+          const ClimaService().previsao(id);
+    });
+  }
 
   void _irPara(int aba) => setState(() => _aba = aba);
 
   void _abrirDetalhe(Alerta alerta) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => DetalheAlertaScreen(alerta: alerta)),
+      MaterialPageRoute(
+        builder: (_) => DetalheAlertaScreen(
+          alerta: alerta,
+          atualizarStatus: widget.atualizarStatusAlerta == null
+              ? null
+              : (status) => widget.atualizarStatusAlerta!(alerta, status),
+        ),
+      ),
     );
   }
 
@@ -64,13 +121,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildTela() {
+    final propriedadeId =
+        SessaoScope.of(context).propriedade?.id ?? widget.propriedade?.id;
     // Cada aba é montada só quando aparece; assim Alertas e Histórico
     // buscam os dados de novo toda vez que o produtor volta para elas.
     final conteudo = switch (_aba) {
       _abaAlertas => AlertasScreen(
-        carregarAlertas: () => const AlertaService().listar(''),
+        atualizarStatus: widget.atualizarStatusAlerta,
+        carregarAlertas: () {
+          if (propriedadeId == null) return Future.value(<Alerta>[]);
+          return widget.carregarAlertas?.call(propriedadeId) ??
+              AlertaService().listar(propriedadeId);
+        },
       ),
-      _abaHistorico => const HistoricoScreen(),
+      _abaHistorico => HistoricoScreen(
+        propriedadeId: propriedadeId ?? '',
+        carregarHistorico:
+            propriedadeId == null || widget.carregarHistorico == null
+            ? null
+            : () => widget.carregarHistorico!(propriedadeId),
+      ),
       _abaPerfil => const PerfilScreen(),
       _ => _buildInicio(),
     };
@@ -120,7 +190,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 _buildCabecalho(),
                 const SizedBox(height: 18),
-                _buildClimaHoje(),
+                _buildClima(),
                 if (destaque != null) ...[
                   const SizedBox(height: 14),
                   _buildAlertaDestaque(destaque),
@@ -128,8 +198,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(height: 22),
                 _buildProximosAlertas(
                   alertas,
-                  carregando:
-                      snapshot.connectionState != ConnectionState.done,
+                  carregando: snapshot.connectionState != ConnectionState.done,
+                  erro: snapshot.hasError,
                 ),
               ],
             );
@@ -161,7 +231,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final nomePropriedade =
         SessaoScope.of(context).propriedade?.nome ??
         widget.propriedade?.nome ??
-        'Fazenda Boa Vista';
+        'Nenhuma propriedade cadastrada';
+    final nomeProdutor = SessaoScope.of(context).nome;
 
     return Row(
       children: [
@@ -171,8 +242,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Olá, João!',
+              Text(
+                nomeProdutor == null || nomeProdutor.isEmpty
+                    ? 'Olá!'
+                    : 'Olá, $nomeProdutor!',
                 style: TextStyle(
                   color: _textoEscuro,
                   fontSize: 24,
@@ -182,8 +255,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.location_on_outlined,
-                      size: 16, color: _textoSuave),
+                  const Icon(
+                    Icons.location_on_outlined,
+                    size: 16,
+                    color: _textoSuave,
+                  ),
                   const SizedBox(width: 4),
                   // Flexible evita que um nome grande estoure a tela: o
                   // texto é cortado com "..." quando não cabe.
@@ -223,7 +299,102 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildClimaHoje() {
+  Widget _buildClima() {
+    final future = _previsao;
+    if (future == null) {
+      return _buildClimaHoje(null);
+    }
+    return FutureBuilder<PrevisaoClimatica>(
+      future: future,
+      builder: (context, snapshot) {
+        final forecast = snapshot.data;
+        if (forecast == null) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildClimaHoje(
+                null,
+                carregando: !snapshot.hasData && !snapshot.hasError,
+              ),
+              if (snapshot.hasError) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Não foi possível carregar a previsão completa.',
+                  style: TextStyle(color: _textoSuave, fontSize: 13),
+                ),
+              ],
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildClimaHoje(forecast.atual),
+            const SizedBox(height: 12),
+            _buildPrevisao(forecast.dias),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPrevisao(List<ClimaDia> dias) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Previsão dos próximos dias',
+          style: TextStyle(
+            color: _textoEscuro,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 118,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: dias.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final dia = dias[index];
+              return Container(
+                width: 104,
+                padding: const EdgeInsets.all(10),
+                decoration: _estiloCartao(),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${dia.data.day.toString().padLeft(2, '0')}/'
+                      '${dia.data.month.toString().padLeft(2, '0')}',
+                      style: const TextStyle(
+                        color: _textoEscuro,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      '${dia.maxima.toStringAsFixed(0)}° / '
+                      '${dia.minima.toStringAsFixed(0)}°',
+                      style: const TextStyle(color: _textoEscuro),
+                    ),
+                    Text(
+                      '${dia.precipitacao.toStringAsFixed(0)} mm',
+                      style: const TextStyle(color: _textoSuave, fontSize: 12),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildClimaHoje(ClimaHoje? clima, {bool carregando = false}) {
+    final temperatura = clima?.temperatura.toStringAsFixed(0) ?? '--';
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _estiloCartao(),
@@ -239,41 +410,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   'Hoje',
                   style: TextStyle(color: _textoSuave, fontSize: 13),
                 ),
-                // Text.rich permite misturar estilos no mesmo texto: aqui o
-                // "24" é grande e o "°C" é menor, na mesma linha.
                 Text.rich(
-                  const TextSpan(
-                    text: '24',
-                    style: TextStyle(
+                  TextSpan(
+                    text: carregando ? '...' : temperatura,
+                    style: const TextStyle(
                       color: _textoEscuro,
                       fontSize: 34,
                       fontWeight: FontWeight.w700,
                     ),
-                    children: [
-                      TextSpan(
-                        text: '°C',
-                        style: TextStyle(fontSize: 18),
-                      ),
+                    children: const [
+                      TextSpan(text: '°C', style: TextStyle(fontSize: 18)),
                     ],
                   ),
                 ),
-                const Text(
-                  'Céu limpo',
-                  style: TextStyle(color: _textoSuave, fontSize: 13),
+                Text(
+                  clima?.descricao ??
+                      (carregando
+                          ? 'Carregando previsão...'
+                          : 'Previsão indisponível'),
+                  style: const TextStyle(color: _textoSuave, fontSize: 13),
                 ),
               ],
             ),
           ),
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'Máx.: 28°',
+                'Máx.: ${clima?.maxima.toStringAsFixed(0) ?? '--'}°',
                 style: TextStyle(color: _textoEscuro, fontSize: 13),
               ),
               SizedBox(height: 6),
               Text(
-                'Mín.: 16°',
+                'Mín.: ${clima?.minima.toStringAsFixed(0) ?? '--'}°',
                 style: TextStyle(color: _textoEscuro, fontSize: 13),
               ),
             ],
@@ -301,8 +470,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.warning_amber_rounded,
-                  color: Color(0xFFE08A00), size: 30),
+              const Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFFE08A00),
+                size: 30,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -336,7 +508,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildProximosAlertas(List<Alerta> alertas, {required bool carregando}) {
+  Widget _buildProximosAlertas(
+    List<Alerta> alertas, {
+    required bool carregando,
+    required bool erro,
+  }) {
     // Mostra só os três mais próximos; o resto fica na aba Alertas.
     final proximos = alertas.take(3).toList();
 
@@ -377,12 +553,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   padding: EdgeInsets.all(20),
                   child: CircularProgressIndicator(color: _verde),
                 )
-              else if (proximos.isEmpty)
+              else if (proximos.isEmpty && !erro)
                 const Padding(
                   padding: EdgeInsets.all(20),
                   child: Text(
                     'Nenhum alerta previsto.',
                     style: TextStyle(color: _textoSuave, fontSize: 14),
+                  ),
+                ),
+              if (erro)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: TextButton.icon(
+                    onPressed: _recarregarDados,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Tentar carregar alertas novamente'),
                   ),
                 ),
               // "collection for": monta um item para cada alerta da lista, sem
@@ -484,10 +669,7 @@ class _BarraNavegacao extends StatelessWidget {
           activeIcon: Icon(Icons.notifications),
           label: 'Alertas',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.history),
-          label: 'Histórico',
-        ),
+        BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Histórico'),
         BottomNavigationBarItem(
           icon: Icon(Icons.person_outline),
           activeIcon: Icon(Icons.person),
