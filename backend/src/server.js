@@ -1,5 +1,5 @@
 // Nome: Rafael Mendes Valente - RA: 25002875
-// Dia: 11/11/2026
+// Data: 11/11/2026
 // Descrição: Inicializa a conexão MongoDB e inicia o servidor HTTP da API.
 
 import { createApp } from './app.js';

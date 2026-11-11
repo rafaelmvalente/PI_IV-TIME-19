@@ -1,5 +1,5 @@
 // Nome: Rafael Mendes Valente - RA: 25002875
-// Dia: 11/11/2026
+// Data: 11/11/2026
 // Descrição: Classifica riscos de geada, seca e chuva forte conforme as regras agrícolas.
 
 const recommendations = {

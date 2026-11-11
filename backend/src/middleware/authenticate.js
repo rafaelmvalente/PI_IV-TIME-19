@@ -1,5 +1,5 @@
 // Nome: Rafael Mendes Valente - RA: 25002875
-// Dia: 11/11/2026
+// Data: 11/11/2026
 // Descrição: Valida tokens JWT e identifica o usuário autenticado.
 
 import jwt from 'jsonwebtoken';

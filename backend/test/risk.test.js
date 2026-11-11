@@ -1,5 +1,5 @@
 // Nome: Rafael Mendes Valente - RA: 25002875
-// Dia: 11/11/2026
+// Data: 11/11/2026
 // Descrição: Testa a classificação de riscos climáticos nas previsões agrícolas.
 
 import test from 'node:test';

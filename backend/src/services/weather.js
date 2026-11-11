@@ -1,5 +1,5 @@
 // Nome: Rafael Mendes Valente - RA: 25002875
-// Dia: 11/11/2026
+// Data: 11/11/2026
 // Descrição: Consulta e normaliza a previsão do tempo fornecida pelo Open-Meteo.
 
 import { env } from '../config/env.js';

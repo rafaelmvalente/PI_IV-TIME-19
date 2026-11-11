@@ -1,5 +1,5 @@
 // Nome: Rafael Mendes Valente - RA: 25002875
-// Dia: 11/11/2026
+// Data: 11/11/2026
 // Descrição: Cria e valida índices usados pelas consultas do banco ClimAlerta.
 
 function criarIndice(colecao, chaves, opcoes) {

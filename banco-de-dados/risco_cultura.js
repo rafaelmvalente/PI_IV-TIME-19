@@ -1,5 +1,5 @@
 // Nome: Rafael Mendes Valente - RA: 25002875
-// Dia: 11/11/2026
+// Data: 11/11/2026
 // Descrição: Registra os limites climáticos de risco para culturas e estágios da lavoura.
 //
 // temp_min_c          geada:       temperatura mínima <= medio -> Médio, <= alto -> Alto

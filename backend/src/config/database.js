@@ -1,5 +1,5 @@
 // Nome: Rafael Mendes Valente - RA: 25002875
-// Dia: 11/11/2026
+// Data: 11/11/2026
 // Descrição: Conecta ao MongoDB e cria índices para as coleções da API.
 
 import { MongoClient } from 'mongodb';
