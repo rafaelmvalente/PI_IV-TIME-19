@@ -5,11 +5,14 @@
 import { createApp } from './app.js';
 import { closeDatabase, connectDatabase } from './config/database.js';
 import { env } from './config/env.js';
+import { startCollectionScheduler } from './services/scheduler.js';
 
 const database = await connectDatabase();
 const server = createApp(database).listen(env.port, () => {
   console.log(`ClimAlerta API disponível na porta ${env.port}.`);
 });
+// Coleta e análise automática dos alertas (#8).
+const scheduler = startCollectionScheduler(database, { intervalMinutes: env.coletaIntervaloMinutos });
 
 async function shutdown(signal) {
   console.log(`Recebido ${signal}; encerrando servidor...`);
@@ -19,6 +22,7 @@ async function shutdown(signal) {
       console.error('Erro ao encerrar o servidor:', error);
       process.exitCode = 1;
     }
+    await scheduler.stop();
     await closeDatabase();
     process.exit();
   });

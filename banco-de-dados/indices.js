@@ -58,3 +58,9 @@ criarIndice("propriedades", { cultivo: 1 }, { name: "propriedades_por_cultivo" }
 
 // Mantém uma regra de risco por cultura e estágio da lavoura.
 criarIndice("risco_cultura", { cultura: 1, estagio: 1 }, { name: "risco_por_cultura_estagio", unique: true });
+
+// Uma leitura de clima por dia por propriedade, usada na seca prolongada (#11).
+criarIndice("leituras_clima", { propriedadeId: 1, data: -1 }, { name: "leituras_por_propriedade_dia", unique: true });
+
+// Define expiração automática das leituras de clima após 30 dias.
+criarIndice("leituras_clima", { data: 1 }, { name: "leituras_expira_30d", expireAfterSeconds: 30 * 24 * 60 * 60 });

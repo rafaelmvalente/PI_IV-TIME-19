@@ -7,6 +7,8 @@
 // chuva_min_mm_semana seca:        chuva da semana    <= medio -> Médio, <= alto -> Alto (0 = sem alerta)
 // chuva_max_mm_semana chuva forte: chuva da semana    >= medio -> Médio, >= alto -> Alto
 // chuva_max_mm_dia    chuva forte: chuva em 24 horas  >= medio -> Médio, >= alto -> Alto
+// seca_dias_sem_chuva seca prolongada: dias seguidos com chuva < chuva_relevante_mm
+//                     >= medio -> Médio, >= alto -> Alto (0 = sem alerta) (issue #11)
 
 use climalerta
 
@@ -180,6 +182,28 @@ const riscos = [
     chuva_max_mm_semana: { medio: 70, alto: 105 },
     chuva_max_mm_dia: { medio: 50, alto: 80 } }
 ];
+
+// Seca prolongada (issue #11): dias seguidos sem chuva relevante por estágio.
+// Plantio e floração são os estágios mais sensíveis à falta de água; na colheita
+// o tempo seco ajuda, então a regra fica desligada. Hortaliças têm raiz curta e
+// sentem a seca antes. Valores iniciais: ajuste com o professor ou um agrônomo.
+const secaPorEstagio = {
+  plantio: { medio: 7, alto: 10 },
+  crescimento: { medio: 10, alto: 15 },
+  floracao: { medio: 7, alto: 12 },
+  colheita: { medio: 0, alto: 0 },
+};
+const secaHortalicas = {
+  plantio: { medio: 4, alto: 6 },
+  crescimento: { medio: 5, alto: 8 },
+  floracao: { medio: 4, alto: 6 },
+  colheita: { medio: 0, alto: 0 },
+};
+riscos.forEach((r) => {
+  r.seca_dias_sem_chuva = (r.cultura === "hortalicas" ? secaHortalicas : secaPorEstagio)[r.estagio];
+  // Abaixo de 2 mm no dia a chuva não chega a molhar o solo.
+  r.chuva_relevante_mm = 2;
+});
 
 riscos.forEach((r) => db.risco_cultura.replaceOne({ _id: r._id }, r, { upsert: true }));
 print(db.risco_cultura.countDocuments() + " documentos em risco_cultura");

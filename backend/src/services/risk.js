@@ -2,23 +2,8 @@
 // Data: 11/11/2026
 // Descrição: Classifica riscos de geada, seca e chuva forte conforme as regras agrícolas.
 
-const recommendations = {
-  geada: {
-    acao: 'Proteja as plantas mais sensíveis',
-    detalhe: 'Cubra as plantas com lona ou plástico agrícola antes da queda de temperatura.',
-    dicas: ['Evite irrigar no fim do dia.', 'Retire a cobertura quando a temperatura subir.'],
-  },
-  seca: {
-    acao: 'Economize e planeje a irrigação',
-    detalhe: 'Priorize as áreas mais sensíveis e acompanhe a umidade do solo.',
-    dicas: ['Irrigue nos horários mais frescos.', 'Verifique vazamentos no sistema.'],
-  },
-  chuvaForte: {
-    acao: 'Prepare a drenagem da lavoura',
-    detalhe: 'Desobstrua valetas e canais para facilitar o escoamento da água.',
-    dicas: ['Evite aplicar insumos antes da chuva.', 'Observe as áreas mais baixas.'],
-  },
-};
+import { detectProlongedDrought } from './drought.js';
+import { recommendationFor } from './recommendations.js';
 
 function riskLevel(observed, thresholds, below = false) {
   if (!thresholds) return null;
@@ -29,7 +14,7 @@ function riskLevel(observed, thresholds, below = false) {
   return medium ? 'medio' : null;
 }
 
-function alertFor(propriedade, tipo, nivel, date, descricao) {
+function alertFor(propriedade, tipo, nivel, date, descricao, context = {}) {
   return {
     propriedadeId: propriedade._id,
     tipo,
@@ -37,12 +22,13 @@ function alertFor(propriedade, tipo, nivel, date, descricao) {
     previstoPara: new Date(`${date}T12:00:00.000Z`),
     descricao,
     status: 'emAndamento',
-    recomendacao: recommendations[tipo],
+    recomendacao: recommendationFor(tipo, nivel, { estagio: propriedade.estagio, ...context }),
     atualizadoEm: new Date(),
   };
 }
 
-export function generateRiskAlerts(propriedade, forecast, rule) {
+// options.historico: leituras de leituras_clima, usadas na seca prolongada (#11).
+export function generateRiskAlerts(propriedade, forecast, rule, options = {}) {
   const alerts = [];
   const { temp_min_c, chuva_min_mm_semana, chuva_max_mm_dia, chuva_max_mm_semana } = rule;
   const rainAlerts = new Map();
@@ -97,7 +83,27 @@ export function generateRiskAlerts(propriedade, forecast, rule) {
   alerts.push(...rainAlerts.values());
 
   const droughtLevel = riskLevel(weeklyRain, chuva_min_mm_semana, true);
-  if (droughtLevel && forecast.daily.length) {
+  const prolongedDrought = detectProlongedDrought({
+    history: options.historico,
+    forecastDays: forecast.daily,
+    rule,
+    today: options.hoje,
+  });
+  if (prolongedDrought) {
+    // Dias seguidos sem chuva (#11). Fica com o nível mais alto entre esta regra
+    // e a chuva da semana, num único alerta de seca.
+    const level = prolongedDrought.nivel === 'alto' || droughtLevel === 'alto' ? 'alto' : 'medio';
+    alerts.push(
+      alertFor(
+        propriedade,
+        'seca',
+        level,
+        prolongedDrought.data,
+        `São ${prolongedDrought.dias} dias seguidos sem chuva relevante, contando a previsão.`,
+        { diasSemChuva: prolongedDrought.dias },
+      ),
+    );
+  } else if (droughtLevel && forecast.daily.length) {
     alerts.push(
       alertFor(
         propriedade,
