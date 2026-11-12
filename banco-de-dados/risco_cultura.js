@@ -10,7 +10,7 @@
 // seca_dias_sem_chuva seca prolongada: dias seguidos com chuva < chuva_relevante_mm
 //                     >= medio -> Médio, >= alto -> Alto (0 = sem alerta) (issue #11)
 
-use climalerta
+db = db.getSiblingDB("climalerta"); // "use climalerta" não funciona ao colar o script inteiro
 
 const riscos = [
   { _id: "soja_plantio", cultura: "soja", estagio: "plantio",
