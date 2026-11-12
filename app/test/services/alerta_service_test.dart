@@ -78,6 +78,30 @@ void main() {
     expect(alerts.single.tipo, TipoAlerta.geada);
   });
 
+  test('offline, o alerta de hoje que já passou da hora continua nos próximos', () async {
+    final agora = DateTime.now();
+    final hojeCedo = DateTime(agora.year, agora.month, agora.day, 0, 1);
+    var online = true;
+    final service = AlertaService(
+      api: ApiClient(
+        baseUrl: 'http://localhost:3000/api/v1',
+        client: MockClient((_) async {
+          if (!online) throw http.ClientException('sem rede');
+          return http.Response(
+            jsonEncode([_alertJson(date: hojeCedo.toUtc().toIso8601String())]),
+            200,
+          );
+        }),
+      ),
+    );
+
+    await service.listar('p1');
+    online = false;
+
+    expect((await service.listar('p1')).single.id, 'alerta-1');
+    expect(await service.listarHistorico('p1'), isEmpty);
+  });
+
   test('consulta histórico e atualiza o status do alerta', () async {
     final requests = <http.Request>[];
     final service = AlertaService(

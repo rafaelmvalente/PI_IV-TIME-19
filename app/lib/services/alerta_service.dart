@@ -40,7 +40,7 @@ class AlertaService {
       final cached = await _alertasEmCache(propriedadeId);
       if (cached.isEmpty) rethrow;
       return cached
-          .where((alerta) => !alerta.previstoPara.isBefore(DateTime.now()))
+          .where((alerta) => !alerta.previstoPara.isBefore(_inicioDeHoje()))
           .where((alerta) => tipo == null || alerta.tipo == tipo)
           .toList()
         ..sort((a, b) => a.previstoPara.compareTo(b.previstoPara));
@@ -70,7 +70,7 @@ class AlertaService {
       final cached = await _alertasEmCache(propriedadeId);
       if (cached.isEmpty) rethrow;
       return cached
-          .where((alerta) => alerta.previstoPara.isBefore(DateTime.now()))
+          .where((alerta) => alerta.previstoPara.isBefore(_inicioDeHoje()))
           .toList()
         ..sort((a, b) => b.previstoPara.compareTo(a.previstoPara));
     }
@@ -105,6 +105,12 @@ class AlertaService {
       }
       rethrow;
     }
+  }
+
+  // Mesmo corte do backend: o alerta de hoje continua em "próximos" o dia todo.
+  static DateTime _inicioDeHoje() {
+    final agora = DateTime.now();
+    return DateTime(agora.year, agora.month, agora.day);
   }
 
   Future<List<Alerta>> _alertasEmCache(String propriedadeId) async {
