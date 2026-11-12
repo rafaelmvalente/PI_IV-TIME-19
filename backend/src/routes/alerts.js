@@ -6,7 +6,7 @@ import { Router } from 'express';
 import { ObjectId } from 'mongodb';
 import { z } from 'zod';
 import { authenticate } from '../middleware/authenticate.js';
-import { refreshAlerts } from '../services/alertas.js';
+import { inicioDoDia, refreshAlerts } from '../services/alertas.js';
 export { refreshAlerts };
 
 const router = Router();
@@ -49,7 +49,9 @@ router.get('/', async (req, res) => {
   if (query.periodo === 'proximos') await refreshAlerts(req.db, property);
   const filter = { propriedadeId: propertyId };
   if (query.tipo) filter.tipo = query.tipo;
-  filter.previstoPara = query.periodo === 'historico' ? { $lt: new Date() } : { $gte: new Date() };
+  // Corta no início do dia de Brasília: o alerta de hoje (12:00 UTC) fica em "próximos" o dia todo.
+  const hoje = inicioDoDia();
+  filter.previstoPara = query.periodo === 'historico' ? { $lt: hoje } : { $gte: hoje };
   const alerts = await req.db.collection('alertas')
     .find(filter)
     .sort({ previstoPara: query.periodo === 'historico' ? -1 : 1 })
