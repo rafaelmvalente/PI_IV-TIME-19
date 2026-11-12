@@ -16,17 +16,22 @@ import 'package:flutter/widgets.dart';
 
 import '../models/preferencias_alerta.dart';
 import '../models/propriedade.dart';
+import '../models/usuario.dart';
 
 class SessaoController extends ChangeNotifier {
   String? _login;
   String? _nome;
+  Usuario? _usuario;
+  String? _token;
   Propriedade? _propriedade;
   PreferenciasAlerta _preferencias = PreferenciasAlerta.padrao;
   bool _carregando = false;
   String? _erro;
 
   String? get login => _login;
-  String? get nome => _nome;
+  String? get nome => _usuario?.nome ?? _nome;
+  Usuario? get usuario => _usuario;
+  String? get token => _token;
   Propriedade? get propriedade => _propriedade;
   PreferenciasAlerta get preferencias => _preferencias;
   bool get carregando => _carregando;
@@ -37,13 +42,18 @@ class SessaoController extends ChangeNotifier {
   void entrar({
     required String login,
     String? nome,
+    Usuario? usuario,
+    String? token,
     Propriedade? propriedade,
     PreferenciasAlerta? preferencias,
   }) {
     _login = login;
-    _nome = nome;
+    _nome = nome ?? usuario?.nome;
+    _usuario = usuario;
+    _token = token;
     _propriedade = propriedade;
-    _preferencias = preferencias ?? PreferenciasAlerta.padrao;
+    _preferencias =
+        preferencias ?? _usuario?.preferencias ?? PreferenciasAlerta.padrao;
     _carregando = false;
     _erro = null;
     notifyListeners();
@@ -74,6 +84,8 @@ class SessaoController extends ChangeNotifier {
   void sair() {
     _login = null;
     _nome = null;
+    _usuario = null;
+    _token = null;
     _propriedade = null;
     _preferencias = PreferenciasAlerta.padrao;
     _carregando = false;

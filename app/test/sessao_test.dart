@@ -1,6 +1,7 @@
 import 'package:app/models/coordenada.dart';
 import 'package:app/models/preferencias_alerta.dart';
 import 'package:app/models/propriedade.dart';
+import 'package:app/models/usuario.dart';
 import 'package:app/session/sessao.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -26,10 +27,21 @@ void main() {
       var avisos = 0;
       sessao.addListener(() => avisos++);
 
-      sessao.entrar(login: 'antonio@exemplo.com', propriedade: _propriedade);
+      sessao.entrar(
+        login: 'antonio@exemplo.com',
+        usuario: const Usuario(
+          id: 'usuario-1',
+          nome: 'Antonio',
+          email: 'antonio@exemplo.com',
+        ),
+        token: 'token-de-teste',
+        propriedade: _propriedade,
+      );
 
       expect(sessao.logado, isTrue);
       expect(sessao.login, 'antonio@exemplo.com');
+      expect(sessao.usuario?.nome, 'Antonio');
+      expect(sessao.token, 'token-de-teste');
       expect(sessao.propriedade?.cultivo, TipoCultivo.milho);
       expect(avisos, 1);
     });

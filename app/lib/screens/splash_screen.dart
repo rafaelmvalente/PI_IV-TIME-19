@@ -8,12 +8,53 @@
 // Descrição: Direciona o início para autenticação antes de usar APIs privadas.
 
 import 'package:flutter/material.dart';
+
+import '../services/api_client.dart';
+import '../services/auth_service.dart';
+import '../session/sessao.dart';
+import 'dashboard_screen.dart';
 import 'login_screen.dart';
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
   static const Color _verdeBotao = Color(0xFF1E7B58);
+
+  @override
+  void initState() {
+    super.initState();
+    _restaurarSessao();
+  }
+
+  Future<void> _restaurarSessao() async {
+    try {
+      final conta = await AuthService().restaurarSessao();
+      if (!mounted || conta == null) return;
+
+      SessaoScope.of(context).entrar(
+        login: conta.login,
+        usuario: conta.usuario,
+        token: conta.token,
+        propriedade: conta.propriedade,
+        preferencias: conta.usuario.preferencias,
+      );
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => DashboardScreen(propriedade: conta.propriedade),
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

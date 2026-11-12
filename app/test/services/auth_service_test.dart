@@ -79,4 +79,44 @@ void main() {
       expect(requests.last.headers['authorization'], 'Bearer token-de-teste');
     },
   );
+
+  test('restaura usuário e propriedade com token salvo', () async {
+    final requests = <http.Request>[];
+    final api = ApiClient(
+      baseUrl: 'http://localhost:3000/api/v1',
+      client: MockClient((request) async {
+        requests.add(request);
+        if (request.url.path.endsWith('/auth/me')) {
+          return http.Response(
+            jsonEncode({
+              'id': 'usuario-1',
+              'nome': 'Ana Produtora',
+              'email': 'ana@example.com',
+              'telefone': null,
+              'preferencias': {'texto': true, 'voz': false, 'sms': false},
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('[]', 200);
+      }),
+    );
+    await api.salvarToken('token-existente');
+
+    final conta = await AuthService(api: api).restaurarSessao();
+
+    expect(conta?.login, 'ana@example.com');
+    expect(conta?.usuario.nome, 'Ana Produtora');
+    expect(conta?.token, 'token-existente');
+    expect(requests, hasLength(2));
+    expect(
+      requests.first.headers['authorization']?.startsWith('Bearer '),
+      isTrue,
+    );
+    expect(
+      requests.first.headers['authorization']?.startsWith('Bearer '),
+      isTrue,
+    );
+  });
 }

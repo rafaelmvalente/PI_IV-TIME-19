@@ -39,6 +39,11 @@ class ApiClient {
     await preferences.setString(_tokenKey, token);
   }
 
+  Future<String?> obterToken() async {
+    final preferences = await SharedPreferences.getInstance();
+    return preferences.getString(_tokenKey);
+  }
+
   Future<void> removerToken() async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.remove(_tokenKey);

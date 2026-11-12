@@ -7,10 +7,16 @@ import '../models/usuario.dart';
 import 'api_client.dart';
 
 class Conta {
-  const Conta({required this.login, required this.usuario, this.propriedade});
+  const Conta({
+    required this.login,
+    required this.usuario,
+    required this.token,
+    this.propriedade,
+  });
 
   final String login;
   final Usuario usuario;
+  final String token;
   final Propriedade? propriedade;
 
   bool get temPropriedade => propriedade != null;
@@ -48,19 +54,46 @@ class AuthService {
     final usuario = Usuario.fromJson(
       response['usuario'] as Map<String, dynamic>,
     );
-    await _api.salvarToken(response['token'] as String);
+    final token = response['token'] as String;
+    await _api.salvarToken(token);
 
     try {
       final properties = await _api.get('/properties') as List<dynamic>;
       return Conta(
         login: login.trim(),
         usuario: usuario,
+        token: token,
         propriedade: properties.isEmpty
             ? null
             : Propriedade.fromJson(properties.first as Map<String, dynamic>),
       );
     } catch (_) {
       await _api.removerToken();
+      rethrow;
+    }
+  }
+
+  Future<Conta?> restaurarSessao() async {
+    final token = await _api.obterToken();
+    if (token == null || token.isEmpty) return null;
+
+    try {
+      final response = await _api.get('/auth/me') as Map<String, dynamic>;
+      final usuario = Usuario.fromJson(response);
+      final properties = await _api.get('/properties') as List<dynamic>;
+      return Conta(
+        login: usuario.email ?? usuario.telefone ?? '',
+        usuario: usuario,
+        token: token,
+        propriedade: properties.isEmpty
+            ? null
+            : Propriedade.fromJson(properties.first as Map<String, dynamic>),
+      );
+    } on ApiException catch (error) {
+      if (error.statusCode == 401) {
+        await _api.removerToken();
+        return null;
+      }
       rethrow;
     }
   }
