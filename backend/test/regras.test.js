@@ -49,7 +49,9 @@ test('RegraGeada: médio, alto e sem risco', () => {
   assert.equal(alertas[0].previstoPara.toISOString(), '2026-11-12T12:00:00.000Z');
   assert.match(alertas[1].descricao, /-1°C/);
   assert.equal(alertas[0].status, 'emAndamento');
-  assert.equal(alertas[0].recomendacao.acao, 'Proteja as plantas mais sensíveis');
+  // A recomendação muda com o nível (#12).
+  assert.equal(alertas[0].recomendacao.acao, 'Prepare a proteção contra geada');
+  assert.equal(alertas[1].recomendacao.acao, 'Proteja as plantas mais sensíveis');
 });
 
 test('RegraGeada: sem limites na cultura não gera alerta', () => {

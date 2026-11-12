@@ -51,7 +51,20 @@ router.get('/', async (req, res) => {
   if (query.tipo) filter.tipo = query.tipo;
   // Corta no início do dia de Brasília: o alerta de hoje (12:00 UTC) fica em "próximos" o dia todo.
   const hoje = inicioDoDia();
-  filter.previstoPara = query.periodo === 'historico' ? { $lt: hoje } : { $gte: hoje };
+  // A seca prolongada fica com a data em que passou do limite, que pode já ter
+  // passado. Enquanto a seca continua (alerta atualizado nas últimas 24 h), ela
+  // aparece em "próximos" e não em "histórico".
+  const ongoingDrought = {
+    tipo: 'seca',
+    status: 'emAndamento',
+    atualizadoEm: { $gte: new Date(Date.now() - 24 * 60 * 60_000) },
+  };
+  if (query.periodo === 'historico') {
+    filter.previstoPara = { $lt: hoje };
+    filter.$nor = [ongoingDrought];
+  } else {
+    filter.$or = [{ previstoPara: { $gte: hoje } }, ongoingDrought];
+  }
   const alerts = await req.db.collection('alertas')
     .find(filter)
     .sort({ previstoPara: query.periodo === 'historico' ? -1 : 1 })

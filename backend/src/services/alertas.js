@@ -6,6 +6,8 @@
 // - Nunca rebaixa o nível: se já existe um alerta "alto", ele continua "alto".
 // - Informa quais alertas são novos ou subiram de nível, para o envio de push
 //   avisar o produtor uma vez só (campo notificadoEm).
+// - Usa o histórico de chuva (leituras_clima) na seca prolongada (#11).
+// - Manda SMS dos alertas de nível alto para quem escolheu SMS (#16, #18).
 
 import { generateRiskAlerts } from './risk.js';
 
@@ -26,6 +28,17 @@ export function inicioDoDia(agora = new Date()) {
 async function previsaoDoProvedor(latitude, longitude) {
   const { getForecast } = await import('./weather.js');
   return getForecast(latitude, longitude);
+}
+
+// Mesmo motivo: readings.js e notifications.js dependem do .env (clima e Twilio).
+async function historicoDoProvedor(database, property) {
+  const { syncReadings } = await import('./readings.js');
+  return syncReadings(database, property);
+}
+
+async function notificarPorSms(database, property, alertas) {
+  const { notifyCriticalAlerts } = await import('./notifications.js');
+  return notifyCriticalAlerts(database, property, alertas);
 }
 
 async function buscarPrevisao(database, property, obterPrevisao) {
@@ -80,10 +93,15 @@ async function salvarNovoAlerta(colecao, alerta) {
 //   alertas  -> todos os alertas da propriedade, do mais próximo ao mais distante
 //   novos    -> alertas criados agora
 //   elevados -> alertas que já existiam e subiram de nível (ex.: médio -> alto)
-export async function gerarAlertas(database, property, { obterPrevisao = previsaoDoProvedor } = {}) {
+export async function gerarAlertas(database, property, {
+  obterPrevisao = previsaoDoProvedor,
+  obterHistorico = historicoDoProvedor,
+  notificar = notificarPorSms,
+} = {}) {
   const forecast = await buscarPrevisao(database, property, obterPrevisao);
   const regra = await buscarRegraDaCultura(database, property);
-  const gerados = generateRiskAlerts(property, forecast, regra);
+  const historico = await obterHistorico(database, property);
+  const gerados = generateRiskAlerts(property, forecast, regra, { historico });
 
   const colecao = database.collection('alertas');
   const chave = (alerta) => `${alerta.tipo}|${new Date(alerta.previstoPara).getTime()}`;
@@ -129,6 +147,13 @@ export async function gerarAlertas(database, property, { obterPrevisao = previsa
     // O status (ação realizada, resolvido) é do produtor: não mexemos nele.
     await colecao.updateOne({ _id: atual._id }, { $set: campos });
     if (subiu) elevados.push({ ...atual, ...campos });
+  }
+
+  // SMS dos alertas críticos. Falha no envio não impede a resposta com os alertas.
+  try {
+    await notificar(database, property, gerados.filter((alerta) => alerta.nivel === 'alto'));
+  } catch (erro) {
+    console.error(`Falha ao notificar os alertas da propriedade ${property._id}:`, erro);
   }
 
   const alertas = await colecao

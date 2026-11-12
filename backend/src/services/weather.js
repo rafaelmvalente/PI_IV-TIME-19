@@ -104,3 +104,48 @@ export function toTodayWeather(forecast) {
     descricao: forecast.current.descricao,
   };
 }
+
+// Chuva e temperatura observadas nos últimos dias, para guardar em leituras_clima
+// e calcular a seca prolongada (issue #11). Hoje fica de fora: o dia ainda não terminou.
+export async function getPastDays(latitude, longitude, days = 14) {
+  const url = new URL(env.weatherApiUrl);
+  url.search = new URLSearchParams({
+    latitude: String(latitude),
+    longitude: String(longitude),
+    daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum',
+    timezone: 'auto',
+    past_days: String(days),
+    forecast_days: '1',
+  });
+
+  let response;
+  try {
+    response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+  } catch {
+    throw Object.assign(new Error('O serviço de previsão do tempo está indisponível.'), {
+      status: 502,
+      code: 'WEATHER_PROVIDER_UNAVAILABLE',
+    });
+  }
+  if (!response.ok) {
+    throw Object.assign(new Error('Não foi possível consultar o histórico do tempo.'), {
+      status: 502,
+      code: 'WEATHER_PROVIDER_ERROR',
+    });
+  }
+
+  const data = await response.json();
+  const time = data.daily?.time;
+  if (!Array.isArray(time) || time.length < 2) return [];
+
+  // O último dia da resposta é hoje (forecast_days = 1).
+  return time.slice(0, -1).flatMap((date, index) => {
+    const reading = {
+      date,
+      chuvaMm: data.daily.precipitation_sum?.[index],
+      tempMin: data.daily.temperature_2m_min?.[index],
+      tempMax: data.daily.temperature_2m_max?.[index],
+    };
+    return Number.isFinite(reading.chuvaMm) ? [reading] : [];
+  });
+}

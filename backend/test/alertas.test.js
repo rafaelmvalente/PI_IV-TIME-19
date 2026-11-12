@@ -46,11 +46,46 @@ function previsaoFalsa(minima) {
   return funcao;
 }
 
+// Histórico de chuva e SMS falsos: os testes não usam internet nem Twilio.
+const semRede = { obterHistorico: async () => [], notificar: async () => {} };
+
+test('manda para o SMS só os alertas de nível alto', async () => {
+  const banco = prepararBanco();
+  const enviados = [];
+  await gerarAlertas(banco, propriedade, {
+    obterPrevisao: async () => ({
+      daily: [
+        { date: '2026-11-12', maxima: 25, minima: 1, precipitation: 10 }, // médio
+        { date: '2026-11-13', maxima: 25, minima: -1, precipitation: 10 }, // alto
+      ],
+    }),
+    obterHistorico: async () => [],
+    notificar: async (_banco, _prop, alertas) => enviados.push(...alertas),
+  });
+  assert.deepEqual(enviados.map((a) => a.nivel), ['alto']);
+});
+
+test('falha no SMS não impede a geração dos alertas', async () => {
+  const banco = prepararBanco();
+  const erroOriginal = console.error;
+  console.error = () => {};
+  try {
+    const { alertas } = await gerarAlertas(banco, propriedade, {
+      ...semRede,
+      obterPrevisao: previsaoFalsa(-1),
+      notificar: async () => { throw new Error('Twilio fora do ar'); },
+    });
+    assert.equal(alertas.length, 1);
+  } finally {
+    console.error = erroOriginal;
+  }
+});
+
 test('cria o alerta novo e avisa que ele é novo', async () => {
   const banco = prepararBanco();
 
   const { alertas, novos, elevados } = await gerarAlertas(banco, propriedade, {
-    obterPrevisao: previsaoFalsa(1),
+    ...semRede, obterPrevisao: previsaoFalsa(1),
   });
 
   assert.equal(alertas.length, 1);
@@ -68,8 +103,8 @@ test('rodar de novo não duplica nem repete o aviso', async () => {
   const banco = prepararBanco();
   const previsao = previsaoFalsa(1);
 
-  await gerarAlertas(banco, propriedade, { obterPrevisao: previsao });
-  const segunda = await gerarAlertas(banco, propriedade, { obterPrevisao: previsao });
+  await gerarAlertas(banco, propriedade, { ...semRede, obterPrevisao: previsao });
+  const segunda = await gerarAlertas(banco, propriedade, { ...semRede, obterPrevisao: previsao });
 
   assert.equal(banco.collection('alertas').docs.length, 1);
   assert.equal(segunda.novos.length, 0);
@@ -80,20 +115,20 @@ test('reaproveita a previsão guardada em vez de consultar o clima de novo', asy
   const banco = prepararBanco();
   const previsao = previsaoFalsa(1);
 
-  await gerarAlertas(banco, propriedade, { obterPrevisao: previsao });
-  await gerarAlertas(banco, propriedade, { obterPrevisao: previsao });
+  await gerarAlertas(banco, propriedade, { ...semRede, obterPrevisao: previsao });
+  await gerarAlertas(banco, propriedade, { ...semRede, obterPrevisao: previsao });
 
   assert.equal(previsao.chamadas, 1);
 });
 
 test('quando o nível sobe, atualiza o alerta e avisa de novo', async () => {
   const banco = prepararBanco();
-  await gerarAlertas(banco, propriedade, { obterPrevisao: previsaoFalsa(1) }); // médio
+  await gerarAlertas(banco, propriedade, { ...semRede, obterPrevisao: previsaoFalsa(1) }); // médio
   banco.collection('alertas').docs[0].notificadoEm = new Date(); // já avisado
   banco.collection('climaCache').docs.length = 0; // previsão nova
 
   const { novos, elevados } = await gerarAlertas(banco, propriedade, {
-    obterPrevisao: previsaoFalsa(-1), // alto
+    ...semRede, obterPrevisao: previsaoFalsa(-1), // alto
   });
 
   assert.equal(novos.length, 0);
@@ -107,11 +142,11 @@ test('quando o nível sobe, atualiza o alerta e avisa de novo', async () => {
 
 test('uma previsão mais branda não rebaixa o alerta', async () => {
   const banco = prepararBanco();
-  await gerarAlertas(banco, propriedade, { obterPrevisao: previsaoFalsa(-1) }); // alto
+  await gerarAlertas(banco, propriedade, { ...semRede, obterPrevisao: previsaoFalsa(-1) }); // alto
   banco.collection('climaCache').docs.length = 0;
 
   const { novos, elevados } = await gerarAlertas(banco, propriedade, {
-    obterPrevisao: previsaoFalsa(1), // médio
+    ...semRede, obterPrevisao: previsaoFalsa(1), // médio
   });
 
   const salvo = banco.collection('alertas').docs[0];
@@ -122,7 +157,7 @@ test('uma previsão mais branda não rebaixa o alerta', async () => {
 
 test('não mexe no status nem no aviso já enviado quando o nível é o mesmo', async () => {
   const banco = prepararBanco();
-  await gerarAlertas(banco, propriedade, { obterPrevisao: previsaoFalsa(1) });
+  await gerarAlertas(banco, propriedade, { ...semRede, obterPrevisao: previsaoFalsa(1) });
   const enviadoEm = new Date('2026-11-11T10:00:00Z');
   Object.assign(banco.collection('alertas').docs[0], {
     status: 'acaoRealizada',
@@ -131,7 +166,7 @@ test('não mexe no status nem no aviso já enviado quando o nível é o mesmo', 
   banco.collection('climaCache').docs.length = 0;
 
   const { novos, elevados } = await gerarAlertas(banco, propriedade, {
-    obterPrevisao: previsaoFalsa(1.5),
+    ...semRede, obterPrevisao: previsaoFalsa(1.5),
   });
 
   const salvo = banco.collection('alertas').docs[0];
@@ -145,7 +180,7 @@ test('se outra execução criou o mesmo alerta ao mesmo tempo, ignora o erro de 
   const banco = prepararBanco();
   banco.collection('alertas').erroNoInsert = Object.assign(new Error('duplicado'), { code: 11000 });
 
-  const { novos } = await gerarAlertas(banco, propriedade, { obterPrevisao: previsaoFalsa(1) });
+  const { novos } = await gerarAlertas(banco, propriedade, { ...semRede, obterPrevisao: previsaoFalsa(1) });
 
   assert.equal(novos.length, 0);
 });
@@ -155,7 +190,7 @@ test('outros erros ao salvar continuam subindo', async () => {
   banco.collection('alertas').erroNoInsert = new Error('banco caiu');
 
   await assert.rejects(
-    () => gerarAlertas(banco, propriedade, { obterPrevisao: previsaoFalsa(1) }),
+    () => gerarAlertas(banco, propriedade, { ...semRede, obterPrevisao: previsaoFalsa(1) }),
     /banco caiu/,
   );
 });
@@ -164,7 +199,7 @@ test('sem regra cadastrada para a cultura, avisa com erro 503', async () => {
   const banco = criarBancoFalso();
 
   await assert.rejects(
-    () => gerarAlertas(banco, propriedade, { obterPrevisao: previsaoFalsa(1) }),
+    () => gerarAlertas(banco, propriedade, { ...semRede, obterPrevisao: previsaoFalsa(1) }),
     { status: 503, code: 'RISK_RULE_NOT_FOUND' },
   );
 });
@@ -172,7 +207,7 @@ test('sem regra cadastrada para a cultura, avisa com erro 503', async () => {
 test('refreshAlerts continua devolvendo a lista de alertas da propriedade', async () => {
   const banco = prepararBanco();
 
-  const lista = await refreshAlerts(banco, propriedade, { obterPrevisao: previsaoFalsa(1) });
+  const lista = await refreshAlerts(banco, propriedade, { ...semRede, obterPrevisao: previsaoFalsa(1) });
 
   assert.ok(Array.isArray(lista));
   assert.equal(lista.length, 1);

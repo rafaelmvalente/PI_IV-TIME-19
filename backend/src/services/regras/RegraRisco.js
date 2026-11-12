@@ -5,7 +5,7 @@
 // Aqui ficam as partes que todas as regras usam: comparar com os limites,
 // somar a chuva da semana e montar o alerta.
 
-import { recomendacoes } from './recomendacoes.js';
+import { recommendationFor } from '../recommendations.js';
 
 export class RegraRisco {
   constructor(tipo) {
@@ -17,7 +17,7 @@ export class RegraRisco {
 
   // Recebe a propriedade, a previsão do tempo e os limites da cultura
   // (documento de risco_cultura) e devolve a lista de alertas desta regra.
-  avaliar(propriedade, forecast, regraCultura) {
+  avaliar(propriedade, forecast, regraCultura, opcoes) {
     throw new Error(`A regra "${this.tipo}" precisa implementar avaliar().`);
   }
 
@@ -37,7 +37,8 @@ export class RegraRisco {
     return forecast.daily.reduce((soma, dia) => soma + (dia.precipitation ?? 0), 0);
   }
 
-  criarAlerta(propriedade, nivel, data, descricao) {
+  // contexto: dados extras para a recomendação (ex.: diasSemChuva na seca).
+  criarAlerta(propriedade, nivel, data, descricao, contexto = {}) {
     return {
       propriedadeId: propriedade._id,
       tipo: this.tipo,
@@ -45,7 +46,7 @@ export class RegraRisco {
       previstoPara: new Date(`${data}T12:00:00.000Z`),
       descricao,
       status: 'emAndamento',
-      recomendacao: recomendacoes[this.tipo],
+      recomendacao: recommendationFor(this.tipo, nivel, { estagio: propriedade.estagio, ...contexto }),
       atualizadoEm: new Date(),
     };
   }
