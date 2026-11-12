@@ -1,11 +1,15 @@
-// Índices do banco climalerta (issue #6).
-// Cole no mongosh (ou na aba MongoSH do Compass). Pode colar de novo:
-// índice que já existe (com qualquer nome) é pulado.
+// Nome: Rafael Mendes Valente - RA: 25002875
+// Data: 11/11/2026
+// Descrição: Cria e valida índices usados pelas consultas do banco ClimAlerta.
 
 function criarIndice(colecao, chaves, opcoes) {
   const c = db.getCollection(colecao);
   let indices = [];
-  try { indices = c.getIndexes(); } catch (e) { /* coleção ainda não existe */ }
+  try {
+    indices = c.getIndexes();
+  } catch (error) {
+    print("[aviso] Não foi possível listar os índices de " + colecao + ": " + error.message);
+  }
   const existente = indices.find((i) => JSON.stringify(i.key) === JSON.stringify(chaves));
   if (!existente) {
     c.createIndex(chaves, opcoes);
@@ -14,46 +18,44 @@ function criarIndice(colecao, chaves, opcoes) {
   }
   print("[já existe] " + colecao + ": " + existente.name);
 
-  // O índice existe, mas pode ter sido criado sem a opção que precisamos.
+  // Atualiza a expiração do índice TTL quando o valor cadastrado é diferente.
   if (opcoes.expireAfterSeconds !== undefined && existente.expireAfterSeconds !== opcoes.expireAfterSeconds) {
     db.runCommand({ collMod: colecao, index: { keyPattern: chaves, expireAfterSeconds: opcoes.expireAfterSeconds } });
     print("            TTL ajustado para " + opcoes.expireAfterSeconds + " segundos");
   }
-  if (opcoes.unique && !existente.unique) {
-    print("            ATENÇÃO: este índice não é único. Para deixar único, apague-o com");
-    print('            db.' + colecao + '.dropIndex("' + existente.name + '") e cole o script de novo.');
+  // Recria o índice quando nome, unique ou sparse diferem: o backend chama
+  // createIndex com essas opções ao iniciar e falharia com IndexOptionsConflict.
+  if (existente.name !== opcoes.name || !!opcoes.unique !== !!existente.unique || !!opcoes.sparse !== !!existente.sparse) {
+    c.dropIndex(existente.name);
+    c.createIndex(chaves, opcoes);
+    print("            recriado como " + opcoes.name + " com as opções novas");
   }
 }
 
-// alertas: histórico e dashboard buscam os alertas da propriedade do usuário,
-// do mais recente para o mais antigo.
+// Acelera consultas dos alertas por propriedade e data.
 criarIndice("alertas", { propriedadeId: 1, previstoPara: -1 }, { name: "alertas_por_propriedade_data" });
 
-// alertas: filtro por tipo (Geada, Seca, Chuva) no histórico. Por ser único,
-// também impede alerta duplicado (mesmo tipo para a mesma data na mesma
-// propriedade), como pede o README.
+// Filtra alertas por tipo e evita duplicatas da mesma propriedade e data.
 criarIndice("alertas", { propriedadeId: 1, tipo: 1, previstoPara: -1 }, { name: "alertas_sem_duplicados", unique: true });
 
-// alertas: alertas ativos da propriedade (status "emAndamento").
+// Acelera consultas de alertas por propriedade e status.
 criarIndice("alertas", { propriedadeId: 1, status: 1 }, { name: "alertas_por_status" });
 
-// climaCache: leitura mais recente do clima da propriedade.
+// Acelera consultas do cache climático por propriedade e data.
 criarIndice("climaCache", { propriedadeId: 1, atualizadoEm: -1 }, { name: "clima_por_propriedade_data" });
 
-// climaCache: TTL. O MongoDB apaga sozinho as leituras com mais de 3 horas.
+// Define expiração automática do cache climático após três horas.
 criarIndice("climaCache", { atualizadoEm: 1 }, { name: "clima_expira_3h", expireAfterSeconds: 3 * 60 * 60 });
 
-// usuarios: login pelo e-mail, sem e-mail repetido.
-criarIndice("usuarios", { email: 1 }, { name: "email_unico", unique: true });
+// Impede duplicatas e mantém login único por e-mail ou telefone.
+criarIndice("usuarios", { email: 1 }, { name: "email_unico", unique: true, sparse: true });
+criarIndice("usuarios", { telefone: 1 }, { name: "telefone_unico", unique: true, sparse: true });
 
-// propriedades: propriedades do usuário logado.
+// Acelera consultas de propriedades do usuário.
 criarIndice("propriedades", { usuarioId: 1 }, { name: "propriedades_por_usuario" });
 
-// propriedades: listar com filtro por tipo de cultivo (issue #14).
+// Acelera filtros de propriedades por cultivo.
 criarIndice("propriedades", { cultivo: 1 }, { name: "propriedades_por_cultivo" });
 
-// risco_cultura: busca pela cultura e estágio da propriedade, sem repetir.
+// Mantém uma regra de risco por cultura e estágio da lavoura.
 criarIndice("risco_cultura", { cultura: 1, estagio: 1 }, { name: "risco_por_cultura_estagio", unique: true });
-
-
-
