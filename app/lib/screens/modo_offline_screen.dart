@@ -88,7 +88,8 @@ class _AvisoModoOfflineState extends State<AvisoModoOffline> {
     final smsAtivo = sessao?.preferencias.sms ?? true;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ModoOfflineScreen(smsAtivo: smsAtivo),
+        builder: (_) =>
+            ModoOfflineScreen(smsAtivo: smsAtivo, telefone: sessao?.telefone),
       ),
     );
     // Chega aqui quando o aviso fecha ("Entendi", voltar ou conexão voltou).
@@ -110,6 +111,7 @@ class ModoOfflineScreen extends StatelessWidget {
     super.key,
     this.semConexao = true,
     this.smsAtivo = true,
+    this.telefone,
   });
 
   // true: aberta pelo AvisoModoOffline, porque a internet caiu.
@@ -119,13 +121,18 @@ class ModoOfflineScreen extends StatelessWidget {
   // Preferência de SMS do produtor (PreferenciasAlerta.sms).
   final bool smsAtivo;
 
+  // Número que recebe os SMS (null quando a conta ainda não tem telefone).
+  final String? telefone;
+
   String get _titulo =>
       semConexao ? 'Modo offline ativado' : 'Como funciona sem internet';
 
   String get _texto {
-    final consequencia = smsAtivo
-        ? 'os alertas críticos continuarão chegando por SMS.'
-        : 'novos alertas só chegarão quando a internet voltar.';
+    final consequencia = !smsAtivo
+        ? 'novos alertas só chegarão quando a internet voltar.'
+        : telefone == null
+        ? 'os alertas críticos chegarão por SMS depois que você cadastrar seu telefone no Perfil.'
+        : 'os alertas críticos continuarão chegando por SMS no número $telefone.';
     if (semConexao) {
       // Primeira letra maiúscula, porque aqui começa uma frase nova.
       return 'Você está sem conexão com a internet.\n'
@@ -134,8 +141,6 @@ class ModoOfflineScreen extends StatelessWidget {
     return 'Quando você ficar sem conexão com a internet, $consequencia';
   }
 
-  // TODO(P043): mostrar o telefone cadastrado, quando a conta separar
-  // e-mail de telefone (backend, P010).
   @override
   Widget build(BuildContext context) {
     return Scaffold(

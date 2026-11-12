@@ -10,6 +10,7 @@ import nodemailer from 'nodemailer';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { authenticate } from '../middleware/authenticate.js';
+import { toE164 } from '../services/sms.js';
 
 const router = Router();
 const passwordSchema = z.string().min(8).max(128);
@@ -110,6 +111,27 @@ router.patch('/me/preferences', authenticate, async (req, res) => {
   const user = await req.db.collection('usuarios').findOneAndUpdate(
     { _id: req.userId },
     { $set: { preferencias: preferences, atualizadoEm: new Date() } },
+    { returnDocument: 'after', projection: { senhaHash: 0 } },
+  );
+  if (!user) {
+    return res.status(404).json({ error: { code: 'USER_NOT_FOUND', message: 'Usuário não encontrado.' } });
+  }
+  return res.json(publicUser(user));
+});
+
+// Cadastra ou troca o telefone da conta, usado no SMS dos alertas críticos.
+// Quem criou a conta pelo e-mail não tinha como informar o número.
+router.patch('/me/telefone', authenticate, async (req, res) => {
+  const { telefone } = z
+    .object({
+      telefone: z.string().trim().min(8).max(20)
+        .refine((value) => toE164(value), { message: 'Informe o telefone com DDD.' }),
+    })
+    .parse(req.body);
+
+  const user = await req.db.collection('usuarios').findOneAndUpdate(
+    { _id: req.userId },
+    { $set: { telefone, atualizadoEm: new Date() } },
     { returnDocument: 'after', projection: { senhaHash: 0 } },
   );
   if (!user) {

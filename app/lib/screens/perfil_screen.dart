@@ -27,6 +27,7 @@ class PerfilScreen extends StatelessWidget {
     this.onTentarNovamente,
     this.salvarPropriedade,
     this.salvarPreferencias,
+    this.salvarTelefone,
     this.sairDaConta,
   });
 
@@ -40,6 +41,7 @@ class PerfilScreen extends StatelessWidget {
   final VoidCallback? onTentarNovamente;
   final Future<Propriedade> Function(Propriedade)? salvarPropriedade;
   final Future<void> Function(PreferenciasAlerta)? salvarPreferencias;
+  final Future<String> Function(String telefone)? salvarTelefone;
   final Future<void> Function()? sairDaConta;
 
   @override
@@ -91,7 +93,11 @@ class PerfilScreen extends StatelessWidget {
         const SizedBox(height: 24),
         _SecaoPropriedade(sessao: s, salvarPropriedade: salvarPropriedade),
         const SizedBox(height: 24),
-        _SecaoAlertas(sessao: s, salvarPreferencias: salvarPreferencias),
+        _SecaoAlertas(
+          sessao: s,
+          salvarPreferencias: salvarPreferencias,
+          salvarTelefone: salvarTelefone,
+        ),
         const SizedBox(height: 32),
         _BotaoSair(sessao: s, onSair: onSair, sairDaConta: sairDaConta),
       ],
@@ -555,10 +561,75 @@ class _EditarPropriedadeSheetState extends State<_EditarPropriedadeSheet> {
 // ---------------------------------------------------------------------------
 
 class _SecaoAlertas extends StatelessWidget {
-  const _SecaoAlertas({required this.sessao, this.salvarPreferencias});
+  const _SecaoAlertas({
+    required this.sessao,
+    this.salvarPreferencias,
+    this.salvarTelefone,
+  });
 
   final SessaoController sessao;
   final Future<void> Function(PreferenciasAlerta)? salvarPreferencias;
+  final Future<String> Function(String telefone)? salvarTelefone;
+
+  // O SMS precisa de um telefone na conta. Quem entrou pelo e-mail ainda não
+  // tem: pede o número antes de ligar.
+  Future<void> _alterarSms(
+    BuildContext context,
+    PreferenciasAlerta prefs,
+    bool ligar,
+  ) async {
+    if (ligar && sessao.telefone == null) {
+      final telefone = await _pedirTelefone(context);
+      if (telefone == null || !context.mounted) return;
+      try {
+        final salvo = await (salvarTelefone ?? AuthService().atualizarTelefone)(
+          telefone,
+        );
+        sessao.definirTelefone(salvo);
+      } on ApiException catch (error) {
+        if (context.mounted) _avisar(context, error.message);
+        return;
+      } catch (error) {
+        if (context.mounted) {
+          _avisar(context, 'Não foi possível salvar o telefone: $error');
+        }
+        return;
+      }
+    }
+    if (context.mounted) await _alterar(context, prefs.copyWith(sms: ligar));
+  }
+
+  Future<String?> _pedirTelefone(BuildContext context) {
+    var digitado = '';
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Qual telefone recebe o SMS?'),
+        content: TextField(
+          autofocus: true,
+          keyboardType: TextInputType.phone,
+          style: const TextStyle(fontSize: 18),
+          decoration: const InputDecoration(hintText: '(19) 98765-4321'),
+          onChanged: (valor) => digitado = valor.trim(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(ctx).pop(digitado.isEmpty ? null : digitado),
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _avisar(BuildContext context, String texto) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
+  }
 
   Future<void> _alterar(BuildContext context, PreferenciasAlerta novas) async {
     if (!novas.algumAtivo) {
@@ -633,12 +704,14 @@ class _SecaoAlertas extends StatelessWidget {
               const Divider(height: 1),
               SwitchListTile(
                 title: const Text('SMS', style: estiloTitulo),
-                subtitle: const Text(
-                  'Alertas críticos por mensagem, mesmo sem internet',
+                subtitle: Text(
+                  sessao.telefone == null
+                      ? 'Alertas críticos por mensagem, mesmo sem internet'
+                      : 'Alertas críticos por mensagem para ${sessao.telefone}',
                   style: estiloDescricao,
                 ),
                 value: prefs.sms,
-                onChanged: (v) => _alterar(context, prefs.copyWith(sms: v)),
+                onChanged: (v) => _alterarSms(context, prefs, v),
               ),
             ],
           ),
@@ -649,7 +722,13 @@ class _SecaoAlertas extends StatelessWidget {
             minimumSize: const Size.fromHeight(56),
           ),
           onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const ModoOfflineScreen()),
+            MaterialPageRoute<void>(
+              builder: (_) => ModoOfflineScreen(
+                semConexao: false,
+                smsAtivo: prefs.sms,
+                telefone: sessao.telefone,
+              ),
+            ),
           ),
           icon: const Icon(Icons.wifi_off_outlined),
           label: const Text(

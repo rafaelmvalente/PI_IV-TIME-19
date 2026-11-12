@@ -20,6 +20,7 @@ import '../models/propriedade.dart';
 class SessaoController extends ChangeNotifier {
   String? _login;
   String? _nome;
+  String? _telefone;
   Propriedade? _propriedade;
   PreferenciasAlerta _preferencias = PreferenciasAlerta.padrao;
   bool _carregando = false;
@@ -27,6 +28,7 @@ class SessaoController extends ChangeNotifier {
 
   String? get login => _login;
   String? get nome => _nome;
+  String? get telefone => _telefone;
   Propriedade? get propriedade => _propriedade;
   PreferenciasAlerta get preferencias => _preferencias;
   bool get carregando => _carregando;
@@ -37,11 +39,13 @@ class SessaoController extends ChangeNotifier {
   void entrar({
     required String login,
     String? nome,
+    String? telefone,
     Propriedade? propriedade,
     PreferenciasAlerta? preferencias,
   }) {
     _login = login;
     _nome = nome;
+    _telefone = telefone;
     _propriedade = propriedade;
     _preferencias = preferencias ?? PreferenciasAlerta.padrao;
     _carregando = false;
@@ -52,6 +56,11 @@ class SessaoController extends ChangeNotifier {
   /// Chamar quando a propriedade for cadastrada ou editada.
   void definirPropriedade(Propriedade propriedade) {
     _propriedade = propriedade;
+    notifyListeners();
+  }
+
+  void definirTelefone(String telefone) {
+    _telefone = telefone;
     notifyListeners();
   }
 
@@ -74,6 +83,7 @@ class SessaoController extends ChangeNotifier {
   void sair() {
     _login = null;
     _nome = null;
+    _telefone = null;
     _propriedade = null;
     _preferencias = PreferenciasAlerta.padrao;
     _carregando = false;

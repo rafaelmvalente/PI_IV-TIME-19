@@ -51,18 +51,48 @@ class AuthService {
     await _api.salvarToken(response['token'] as String);
 
     try {
-      final properties = await _api.get('/properties') as List<dynamic>;
-      return Conta(
-        login: login.trim(),
-        usuario: usuario,
-        propriedade: properties.isEmpty
-            ? null
-            : Propriedade.fromJson(properties.first as Map<String, dynamic>),
-      );
+      return await _montarConta(login.trim(), usuario);
     } catch (_) {
       await _api.removerToken();
       rethrow;
     }
+  }
+
+  // Reabre a conta com o token salvo, sem pedir login de novo. Retorna null
+  // se não há token, se ele expirou (e então o apaga) ou se a API não responde.
+  Future<Conta?> restaurarSessao() async {
+    if (!await _api.temToken()) return null;
+    try {
+      final usuario = Usuario.fromJson(
+        await _api.get('/auth/me') as Map<String, dynamic>,
+      );
+      return await _montarConta(
+        usuario.email ?? usuario.telefone ?? '',
+        usuario,
+      );
+    } on ApiException catch (error) {
+      if (error.statusCode == 401) await _api.removerToken();
+      return null;
+    }
+  }
+
+  Future<Conta> _montarConta(String login, Usuario usuario) async {
+    final properties = await _api.get('/properties') as List<dynamic>;
+    return Conta(
+      login: login,
+      usuario: usuario,
+      propriedade: properties.isEmpty
+          ? null
+          : Propriedade.fromJson(properties.first as Map<String, dynamic>),
+    );
+  }
+
+  // Telefone que recebe o SMS dos alertas críticos. Devolve o número salvo.
+  Future<String> atualizarTelefone(String telefone) async {
+    final json =
+        await _api.patch('/auth/me/telefone', body: {'telefone': telefone})
+            as Map<String, dynamic>;
+    return Usuario.fromJson(json).telefone!;
   }
 
   Future<void> recuperarSenha(String login) async {

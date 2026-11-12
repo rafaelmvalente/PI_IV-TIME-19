@@ -79,4 +79,72 @@ void main() {
       expect(requests.last.headers['authorization'], 'Bearer token-de-teste');
     },
   );
+
+  group('restaurarSessao', () {
+    http.Response json(Object corpo, [int status = 200]) => http.Response(
+      jsonEncode(corpo),
+      status,
+      headers: {'content-type': 'application/json'},
+    );
+
+    AuthService servico(Future<http.Response> Function(http.Request) rotas) =>
+        AuthService(
+          api: ApiClient(
+            baseUrl: 'http://localhost:3000/api/v1',
+            client: MockClient(rotas),
+          ),
+        );
+
+    test('sem token salvo não chama a API', () async {
+      var chamadas = 0;
+      final conta = await servico((_) async {
+        chamadas++;
+        return json({});
+      }).restaurarSessao();
+
+      expect(conta, isNull);
+      expect(chamadas, 0);
+    });
+
+    test('com token válido devolve a conta, o telefone e a propriedade', () async {
+      SharedPreferences.setMockInitialValues({'api_access_token': 'abc'});
+      final conta = await servico((request) async {
+        expect(request.headers['Authorization'], 'Bearer abc');
+        if (request.url.path.endsWith('/auth/me')) {
+          return json({
+            'id': 'u1',
+            'nome': 'Ana',
+            'email': null,
+            'telefone': '19987654321',
+          });
+        }
+        return json([
+          {
+            'id': 'p1',
+            'nome': 'Sítio Verde',
+            'cultivo': 'soja',
+            'latitude': -23.5,
+            'longitude': -46.6,
+          },
+        ]);
+      }).restaurarSessao();
+
+      expect(conta?.login, '19987654321');
+      expect(conta?.usuario.telefone, '19987654321');
+      expect(conta?.propriedade?.id, 'p1');
+    });
+
+    test('token expirado é apagado', () async {
+      SharedPreferences.setMockInitialValues({'api_access_token': 'velho'});
+      final conta = await servico(
+        (_) async => json({
+          'error': {'code': 'INVALID_TOKEN', 'message': 'Token inválido.'},
+        }, 401),
+      ).restaurarSessao();
+
+      expect(conta, isNull);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('api_access_token'), isNull);
+    });
+  });
 }

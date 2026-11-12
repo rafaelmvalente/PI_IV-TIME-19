@@ -104,6 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
       SessaoScope.of(context).entrar(
         login: conta.login,
         nome: conta.usuario.nome,
+        telefone: conta.usuario.telefone,
         propriedade: conta.propriedade,
         preferencias: conta.usuario.preferencias,
       );
