@@ -1,16 +1,16 @@
 // Caique Vasconcelos Naimi - 25004208
 // Data: 09/11/2026
 // Descrição: Programa principal do servidor de validação de telefone do ClimAlerta.
-// Sobe na porta 3000 (ou a informada) e aceita o comando "desativar".
+// Sobe na porta 3001 (ou a informada; a 3000 é do backend Node) e aceita o comando "desativar".
 // Baseado no modelo do professor (Fazedor de Continhas).
 
 import java.util.*;
 
 // O backend (Node) se conecta a este servidor via socket na PORTA_PADRAO;
-// veja o TODO BACKEND em Cliente/Cliente.java.
+// o backend roda o Cliente/ValidaTelefone.java para isso.
 public class Servidor
 {
-	public static String PORTA_PADRAO = "3000";
+	public static String PORTA_PADRAO = "3001";
 	
     public static void main (String[] args)
     {
