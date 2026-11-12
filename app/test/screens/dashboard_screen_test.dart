@@ -3,6 +3,8 @@
 // Descrição: Testes de widget da navegação do dashboard: barra inferior,
 // sino, "Ver todos", avatar, alerta em destaque e próximos alertas.
 
+import 'package:app/data/alertas_exemplo.dart';
+import 'package:app/models/clima.dart';
 import 'package:app/models/coordenada.dart';
 import 'package:app/models/propriedade.dart';
 import 'package:app/screens/alertas_screen.dart';
@@ -24,7 +26,31 @@ Future<SessaoController> _abrir(WidgetTester tester) async {
   await tester.pumpWidget(
     SessaoScope(
       controller: sessao,
-      child: const MaterialApp(home: DashboardScreen()),
+      child: MaterialApp(
+        home: DashboardScreen(
+          propriedade: const Propriedade(
+            id: 'p1',
+            nome: 'Fazenda Boa Vista',
+            cultivo: TipoCultivo.soja,
+            localizacao: Coordenada(latitude: -23.5, longitude: -46.6),
+          ),
+          carregarAlertas: (_) async => alertasDeExemplo(DateTime.now()),
+          carregarHistorico: (_) async => historicoDeExemplo(DateTime.now()),
+          carregarPrevisao: (_) async => PrevisaoClimatica.fromJson({
+            'current': {'temperatura': 24, 'descricao': 'Céu limpo'},
+            'daily': [
+              {
+                'date': '2026-11-11',
+                'maxima': 28,
+                'minima': 16,
+                'precipitation': 0,
+              },
+            ],
+          }),
+          atualizarStatusAlerta: (alerta, status) async =>
+              alerta.copyWith(status: status),
+        ),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -100,8 +126,9 @@ void main() {
     expect(find.text('Risco de chuva forte'), findsOneWidget);
   });
 
-  testWidgets('mostra o nome da propriedade guardada na sessão',
-      (tester) async {
+  testWidgets('mostra o nome da propriedade guardada na sessão', (
+    tester,
+  ) async {
     final sessao = await _abrir(tester);
     expect(find.text('Fazenda Boa Vista'), findsOneWidget);
 

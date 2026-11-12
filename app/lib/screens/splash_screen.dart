@@ -1,13 +1,13 @@
-
- // Rafael Mendes Valente - 25002875
+// Rafael Mendes Valente - 25002875
 // Data: 07/10/26
 // Horário: 19h15 - 23h15
 // Descrição: Tela inicial do aplicativo. Exibe o logo e o nome,
 // com o botão "Começar" e o link para login.
+// Nome: Rafael Mendes Valente - RA: 25002875
+// Data: 11/11/2026
+// Descrição: Direciona o início para autenticação antes de usar APIs privadas.
 
 import 'package:flutter/material.dart';
-import 'cadastro_propriedade_screen.dart';
-import 'dashboard_screen.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatelessWidget {
@@ -76,28 +76,12 @@ class SplashScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: () async {
-                          final propriedade = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  const CadastroPropriedadeScreen(),
-                            ),
-                          );
-
-                          if (propriedade == null || !context.mounted) {
-                            return;
-                          }
-
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => DashboardScreen(
-                                propriedade: propriedade,
-                              ),
-                            ),
-                          );
-                        },
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                        ),
                         child: const Text(
                           'Começar',
                           style: TextStyle(
@@ -142,10 +126,7 @@ class SplashScreen extends StatelessWidget {
     return ClipRect(
       child: Align(
         heightFactor: 0.5,
-        child: Image.asset(
-          'assets/images/logo PI4.png',
-          width: 250,
-        ),
+        child: Image.asset('assets/images/logo PI4.png', width: 250),
       ),
     );
   }

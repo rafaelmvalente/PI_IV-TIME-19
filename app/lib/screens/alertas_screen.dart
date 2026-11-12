@@ -2,6 +2,8 @@
 // Data: 28/10/2026
 // Descrição: Tela 5 do relatório — lista de todos os alertas recebidos, com
 // filtro por tipo (Todos, Geada, Seca, Chuva). Tocar em um alerta abre o detalhe.
+// Data: 11/11/2026
+// Descrição: Recebe alertas da propriedade selecionada pelo dashboard.
 
 import 'package:flutter/material.dart';
 
@@ -13,11 +15,16 @@ import 'detalhe_alerta_screen.dart';
 // StatefulWidget porque a tela muda enquanto está aberta: o filtro escolhido
 // e o resultado do carregamento dos alertas.
 class AlertasScreen extends StatefulWidget {
-  // Quem abre a tela decide de onde vêm os alertas. No app é o AlertaService,
-  // que usa alertas de exemplo até o backend existir (P010).
-  const AlertasScreen({super.key, required this.carregarAlertas});
+  // Quem abre a tela decide de onde vêm os alertas, inclusive nos testes.
+  const AlertasScreen({
+    super.key,
+    required this.carregarAlertas,
+    this.atualizarStatus,
+  });
 
   final Future<List<Alerta>> Function() carregarAlertas;
+  final Future<Alerta> Function(Alerta alerta, StatusAlerta status)?
+  atualizarStatus;
 
   @override
   State<AlertasScreen> createState() => _AlertasScreenState();
@@ -122,7 +129,10 @@ class _AlertasScreenState extends State<AlertasScreen> {
           padding: const EdgeInsets.only(bottom: 20),
           itemCount: alertas.length,
           separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (_, i) => _CartaoAlerta(alerta: alertas[i]),
+          itemBuilder: (_, i) => _CartaoAlerta(
+            alerta: alertas[i],
+            atualizarStatus: widget.atualizarStatus,
+          ),
         );
       },
     );
@@ -130,9 +140,11 @@ class _AlertasScreenState extends State<AlertasScreen> {
 }
 
 class _CartaoAlerta extends StatelessWidget {
-  const _CartaoAlerta({required this.alerta});
+  const _CartaoAlerta({required this.alerta, this.atualizarStatus});
 
   final Alerta alerta;
+  final Future<Alerta> Function(Alerta alerta, StatusAlerta status)?
+  atualizarStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +159,12 @@ class _CartaoAlerta extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => DetalheAlertaScreen(alerta: alerta),
+            builder: (_) => DetalheAlertaScreen(
+              alerta: alerta,
+              atualizarStatus: atualizarStatus == null
+                  ? null
+                  : (status) => atualizarStatus!(alerta, status),
+            ),
           ),
         ),
         child: Padding(

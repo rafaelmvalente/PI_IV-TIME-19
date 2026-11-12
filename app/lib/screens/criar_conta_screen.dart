@@ -5,9 +5,13 @@
 // informa e-mail ou telefone, senha e confirmação de senha. Ao criar a conta,
 // a tela devolve o e-mail/telefone cadastrado para que o login seja preenchido.
 // Se o usuário já possuir uma conta, a tela informa que deve seguir para o login.
+// Nome: Rafael Mendes Valente - RA: 25002875
+// Data: 11/11/2026
+// Descrição: Envia o cadastro do produtor para a API de autenticação.
 
 import 'package:flutter/material.dart';
 
+import '../services/api_client.dart';
 import '../services/auth_service.dart';
 
 class CriarContaResultado {
@@ -16,13 +20,11 @@ class CriarContaResultado {
 
   // Resultado usado quando uma conta é criada com sucesso.
   const CriarContaResultado.contaCriada(String valor)
-      : login = valor,
-        irParaLogin = false;
+    : login = valor,
+      irParaLogin = false;
 
   // Resultado usado quando o usuário já possui uma conta.
-  const CriarContaResultado.irParaLogin()
-      : login = null,
-        irParaLogin = true;
+  const CriarContaResultado.irParaLogin() : login = null, irParaLogin = true;
 }
 
 class CriarContaScreen extends StatefulWidget {
@@ -37,50 +39,56 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
   static const Color _borda = Color(0xFFD5DBD8);
 
   final _formKey = GlobalKey<FormState>();
+  final _nomeController = TextEditingController();
   final _loginController = TextEditingController();
   final _senhaController = TextEditingController();
   final _confirmarController = TextEditingController();
+  final _authService = AuthService();
 
   bool _ocultarSenha = true;
+  bool _criando = false;
 
   @override
   void dispose() {
     // Libera os controladores quando a tela deixa de existir.
+    _nomeController.dispose();
     _loginController.dispose();
     _senhaController.dispose();
     _confirmarController.dispose();
     super.dispose();
   }
 
-  void _criar() {
+  Future<void> _criar() async {
     // Valida os campos antes de tentar criar a conta.
     if (!_formKey.currentState!.validate()) return;
 
     final login = _loginController.text.trim();
 
-    final criou = AuthService.criarConta(
-      login,
-      _senhaController.text,
-    );
-
-    // Se já existir uma conta com esse e-mail ou telefone,
-    // mostra uma mensagem e mantém o usuário nesta tela.
-    if (!criou) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Já existe uma conta com esse e-mail ou telefone',
-          ),
-        ),
+    setState(() => _criando = true);
+    try {
+      await _authService.criarConta(
+        nome: _nomeController.text.trim(),
+        login: login,
+        senha: _senhaController.text,
       );
-      return;
+      if (!mounted) return;
+      Navigator.of(context).pop(CriarContaResultado.contaCriada(login));
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      final message = error.code == 'DUPLICATE'
+          ? 'Já existe uma conta com esse e-mail ou telefone.'
+          : error.message;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível criar a conta: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _criando = false);
     }
-
-    // Devolve o e-mail ou telefone para a tela que abriu o cadastro.
-    // O login poderá usar esse valor para preencher o campo automaticamente.
-    Navigator.of(context).pop(
-      CriarContaResultado.contaCriada(login),
-    );
   }
 
   void _irParaLogin() {
@@ -89,9 +97,7 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
     //
     // Se o cadastro foi aberto pela splash, a splash abre o login.
     // Se foi aberto pelo login, o login atual permanece aberto.
-    Navigator.of(context).pop(
-      const CriarContaResultado.irParaLogin(),
-    );
+    Navigator.of(context).pop(const CriarContaResultado.irParaLogin());
   }
 
   @override
@@ -135,13 +141,27 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
 
                     const Text(
                       'Informe seus dados para começar a receber alertas.',
-                      style: TextStyle(
-                        color: Color(0xFF2B3A33),
-                        fontSize: 15,
-                      ),
+                      style: TextStyle(color: Color(0xFF2B3A33), fontSize: 15),
                     ),
 
                     const SizedBox(height: 32),
+
+                    TextFormField(
+                      controller: _nomeController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: _decoracao(
+                        'Nome completo',
+                        Icons.person_outline,
+                      ),
+                      validator: (valor) {
+                        if ((valor ?? '').trim().length < 2) {
+                          return 'Informe seu nome';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 14),
 
                     TextFormField(
                       controller: _loginController,
@@ -163,29 +183,27 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
                     TextFormField(
                       controller: _senhaController,
                       obscureText: _ocultarSenha,
-                      decoration: _decoracao(
-                        'Senha',
-                        Icons.lock_outline,
-                      ).copyWith(
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _ocultarSenha
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
+                      decoration: _decoracao('Senha', Icons.lock_outline)
+                          .copyWith(
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _ocultarSenha
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _ocultarSenha = !_ocultarSenha;
+                                });
+                              },
+                            ),
                           ),
-                          onPressed: () {
-                            setState(() {
-                              _ocultarSenha = !_ocultarSenha;
-                            });
-                          },
-                        ),
-                      ),
                       validator: (valor) {
                         if (valor == null || valor.isEmpty) {
                           return 'Informe uma senha';
                         }
-                        if (valor.length < 6) {
-                          return 'A senha deve ter pelo menos 6 caracteres';
+                        if (valor.length < 8) {
+                          return 'A senha deve ter pelo menos 8 caracteres';
                         }
                         return null;
                       },
@@ -227,7 +245,7 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: _criar,
+                        onPressed: _criando ? null : _criar,
                         child: const Text(
                           'Criar conta',
                           style: TextStyle(
@@ -271,16 +289,13 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
   InputDecoration _decoracao(String dica, IconData icone) {
     // Cria as bordas dos campos para manter o padrão visual da tela.
     OutlineInputBorder borda(Color cor) => OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: cor),
-        );
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide(color: cor),
+    );
 
     return InputDecoration(
       hintText: dica,
-      prefixIcon: Icon(
-        icone,
-        color: Colors.grey.shade600,
-      ),
+      prefixIcon: Icon(icone, color: Colors.grey.shade600),
       filled: true,
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(vertical: 16),

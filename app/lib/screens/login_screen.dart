@@ -6,12 +6,16 @@
 // "Esqueceu sua senha?", o botão "Entrar" e o botão "Criar conta". Após o
 // login, verifica se a conta já possui propriedade e, se não tiver, pergunta
 // se o produtor quer cadastrar agora.
-
+// Nome: Rafael Mendes Valente - RA: 25002875
+// Data: 11/11/2026
+// Descrição: Conecta o login, sessão e cadastro de propriedade à API.
 
 import 'package:flutter/material.dart';
 
 import '../models/propriedade.dart';
 import '../services/auth_service.dart';
+import '../services/api_client.dart';
+import '../services/propriedade_service.dart';
 import '../session/sessao.dart';
 import 'cadastro_propriedade_screen.dart';
 import 'criar_conta_screen.dart';
@@ -34,8 +38,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _loginController = TextEditingController();
   final _senhaController = TextEditingController();
+  final _authService = AuthService();
 
   bool _ocultarSenha = true;
+  bool _enviando = false;
 
   @override
   void initState() {
@@ -55,9 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _mostrarMensagem(String texto) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(texto)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
   }
 
   void _abrirRecuperarSenha() {
@@ -65,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
       MaterialPageRoute<void>(
         builder: (_) => RecuperarSenhaScreen(
           loginInicial: _loginController.text,
-          onEnviar: AuthService.recuperarSenha,
+          onEnviar: _authService.recuperarSenha,
         ),
       ),
     );
@@ -85,31 +89,42 @@ class _LoginScreenState extends State<LoginScreen> {
     // Valida os campos antes de conferir os dados da conta.
     if (!_formKey.currentState!.validate()) return;
 
-    final conta = AuthService.entrar(
-      _loginController.text,
-      _senhaController.text,
-    );
+    setState(() => _enviando = true);
+    try {
+      final conta = await _authService.entrar(
+        _loginController.text,
+        _senhaController.text,
+      );
+      if (conta == null) {
+        _mostrarMensagem('E-mail/telefone ou senha incorretos');
+        return;
+      }
+      if (!mounted) return;
 
-    if (conta == null) {
-      _mostrarMensagem('E-mail/telefone ou senha incorretos');
-      return;
-    }
+      SessaoScope.of(context).entrar(
+        login: conta.login,
+        nome: conta.usuario.nome,
+        propriedade: conta.propriedade,
+        preferencias: conta.usuario.preferencias,
+      );
 
-    if (!mounted) return;
-
-    // Guarda quem entrou (e a propriedade da conta, se houver) para que
-    // todas as telas do app consigam ler.
-    SessaoScope.of(context).entrar(
-      login: conta.login,
-      propriedade: conta.propriedade,
-    );
-
-    // Se a conta já possui propriedade cadastrada, abre o dashboard.
-    // Caso contrário, pergunta se o usuário deseja cadastrar uma.
-    if (conta.temPropriedade) {
-      _abrirDashboard(propriedade: conta.propriedade);
-    } else {
-      await _perguntarCadastroPropriedade(conta);
+      if (conta.temPropriedade) {
+        _abrirDashboard(propriedade: conta.propriedade);
+      } else {
+        await _perguntarCadastroPropriedade(conta);
+      }
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      _mostrarMensagem(
+        error.code == 'INVALID_CREDENTIALS'
+            ? 'E-mail/telefone ou senha incorretos'
+            : error.message,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _mostrarMensagem('Não foi possível entrar: $error');
+    } finally {
+      if (mounted) setState(() => _enviando = false);
     }
   }
 
@@ -149,9 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (querCadastrar == true) {
       // Abre o cadastro e espera receber a propriedade salva.
       final propriedade = await Navigator.of(context).push<Propriedade>(
-        MaterialPageRoute(
-          builder: (_) => const CadastroPropriedadeScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const CadastroPropriedadeScreen()),
       );
 
       if (!mounted) return;
@@ -160,10 +173,16 @@ class _LoginScreenState extends State<LoginScreen> {
       // permanece na tela de login.
       if (propriedade == null) return;
 
-      AuthService.marcarPropriedadeCadastrada(conta, propriedade: propriedade);
-      SessaoScope.of(context).definirPropriedade(propriedade);
-
-      _abrirDashboard(propriedade: propriedade);
+      try {
+        final saved = await const PropriedadeService().salvar(propriedade);
+        if (!mounted) return;
+        SessaoScope.of(context).definirPropriedade(saved);
+        _abrirDashboard(propriedade: saved);
+      } on ApiException catch (error) {
+        if (mounted) _mostrarMensagem(error.message);
+      } catch (error) {
+        if (mounted) _mostrarMensagem('Não foi possível salvar: $error');
+      }
       return;
     }
 
@@ -176,11 +195,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _criarConta() async {
     // Abre a tela de criação de conta e espera seu resultado.
-    final resultado =
-        await Navigator.of(context).push<CriarContaResultado>(
-      MaterialPageRoute(
-        builder: (_) => const CriarContaScreen(),
-      ),
+    final resultado = await Navigator.of(context).push<CriarContaResultado>(
+      MaterialPageRoute(builder: (_) => const CriarContaScreen()),
     );
 
     if (!mounted || resultado == null) return;
@@ -198,9 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
     _loginController.text = login;
     _senhaController.clear();
 
-    _mostrarMensagem(
-      'Conta criada! Digite sua senha para entrar.',
-    );
+    _mostrarMensagem('Conta criada! Digite sua senha para entrar.');
   }
 
   @override
@@ -222,9 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 28,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 28),
                           child: Form(
                             key: _formKey,
                             child: Column(
@@ -257,8 +269,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     Icons.mail_outline,
                                   ),
                                   validator: (valor) {
-                                    if (valor == null ||
-                                        valor.trim().isEmpty) {
+                                    if (valor == null || valor.trim().isEmpty) {
                                       return 'Informe seu e-mail ou telefone';
                                     }
                                     return null;
@@ -268,23 +279,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                 TextFormField(
                                   controller: _senhaController,
                                   obscureText: _ocultarSenha,
-                                  decoration: _decoracao(
-                                    'Senha',
-                                    Icons.lock_outline,
-                                  ).copyWith(
-                                    suffixIcon: IconButton(
-                                      icon: Icon(
-                                        _ocultarSenha
-                                            ? Icons.visibility_outlined
-                                            : Icons.visibility_off_outlined,
+                                  decoration:
+                                      _decoracao(
+                                        'Senha',
+                                        Icons.lock_outline,
+                                      ).copyWith(
+                                        suffixIcon: IconButton(
+                                          icon: Icon(
+                                            _ocultarSenha
+                                                ? Icons.visibility_outlined
+                                                : Icons.visibility_off_outlined,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _ocultarSenha = !_ocultarSenha;
+                                            });
+                                          },
+                                        ),
                                       ),
-                                      onPressed: () {
-                                        setState(() {
-                                          _ocultarSenha = !_ocultarSenha;
-                                        });
-                                      },
-                                    ),
-                                  ),
                                   validator: (valor) {
                                     if (valor == null || valor.isEmpty) {
                                       return 'Informe sua senha';
@@ -320,7 +332,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
-                                    onPressed: _entrar,
+                                    onPressed: _enviando ? null : _entrar,
                                     child: const Text(
                                       'Entrar',
                                       style: TextStyle(
@@ -342,9 +354,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   child: OutlinedButton(
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: _verde,
-                                      side: const BorderSide(
-                                        color: _verde,
-                                      ),
+                                      side: const BorderSide(color: _verde),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -384,16 +394,13 @@ class _LoginScreenState extends State<LoginScreen> {
   InputDecoration _decoracao(String dica, IconData icone) {
     // Define o formato e as cores das bordas dos campos.
     OutlineInputBorder borda(Color cor) => OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: cor),
-        );
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide(color: cor),
+    );
 
     return InputDecoration(
       hintText: dica,
-      prefixIcon: Icon(
-        icone,
-        color: Colors.grey.shade600,
-      ),
+      prefixIcon: Icon(icone, color: Colors.grey.shade600),
       filled: true,
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(vertical: 16),
@@ -410,10 +417,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return ClipRect(
       child: Align(
         heightFactor: 0.5,
-        child: Image.asset(
-          'assets/images/logo PI4.png',
-          width: 170,
-        ),
+        child: Image.asset('assets/images/logo PI4.png', width: 170),
       ),
     );
   }

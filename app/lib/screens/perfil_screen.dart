@@ -4,13 +4,17 @@
 // dados da propriedade (com edição), as preferências de alerta (texto, voz e
 // SMS), o acesso ao modo offline e a opção de sair da conta. Lê tudo da
 // sessão (SessaoScope).
+// Data: 11/11/2026
+// Descrição: Persiste propriedade, preferências e saída pela API autenticada.
 
 import 'package:flutter/material.dart';
 
 import '../models/estagio_lavoura.dart';
 import '../models/preferencias_alerta.dart';
 import '../models/propriedade.dart';
+import '../services/api_client.dart';
 import '../services/auth_service.dart';
+import '../services/propriedade_service.dart';
 import '../session/sessao.dart';
 import 'cadastro_propriedade_screen.dart';
 import 'modo_offline_screen.dart';
@@ -21,6 +25,9 @@ class PerfilScreen extends StatelessWidget {
     this.sessao,
     this.onSair,
     this.onTentarNovamente,
+    this.salvarPropriedade,
+    this.salvarPreferencias,
+    this.sairDaConta,
   });
 
   /// Para testes: se vier nulo, usa a sessão do SessaoScope.
@@ -31,6 +38,9 @@ class PerfilScreen extends StatelessWidget {
 
   /// Mostrado no estado de erro. Sem ele, o botão "Tentar novamente" some.
   final VoidCallback? onTentarNovamente;
+  final Future<Propriedade> Function(Propriedade)? salvarPropriedade;
+  final Future<void> Function(PreferenciasAlerta)? salvarPreferencias;
+  final Future<void> Function()? sairDaConta;
 
   @override
   Widget build(BuildContext context) {
@@ -79,11 +89,11 @@ class PerfilScreen extends StatelessWidget {
       children: [
         _CabecalhoConta(login: login),
         const SizedBox(height: 24),
-        _SecaoPropriedade(sessao: s),
+        _SecaoPropriedade(sessao: s, salvarPropriedade: salvarPropriedade),
         const SizedBox(height: 24),
-        _SecaoAlertas(sessao: s),
+        _SecaoAlertas(sessao: s, salvarPreferencias: salvarPreferencias),
         const SizedBox(height: 32),
-        _BotaoSair(sessao: s, onSair: onSair),
+        _BotaoSair(sessao: s, onSair: onSair, sairDaConta: sairDaConta),
       ],
     );
   }
@@ -94,8 +104,9 @@ class PerfilScreen extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 String _numeroTexto(double valor) {
-  final texto =
-      valor == valor.roundToDouble() ? valor.toStringAsFixed(0) : valor.toString();
+  final texto = valor == valor.roundToDouble()
+      ? valor.toStringAsFixed(0)
+      : valor.toString();
   return texto.replaceAll('.', ',');
 }
 
@@ -138,7 +149,11 @@ class _MensagemEstado extends StatelessWidget {
           children: [
             Icon(icone, size: 64, color: scheme.primary),
             const SizedBox(height: 16),
-            Text(titulo, textAlign: TextAlign.center, style: textTheme.headlineSmall),
+            Text(
+              titulo,
+              textAlign: TextAlign.center,
+              style: textTheme.headlineSmall,
+            ),
             const SizedBox(height: 8),
             Text(
               texto,
@@ -226,9 +241,10 @@ class _LinhaDado extends StatelessWidget {
 }
 
 class _SecaoPropriedade extends StatelessWidget {
-  const _SecaoPropriedade({required this.sessao});
+  const _SecaoPropriedade({required this.sessao, this.salvarPropriedade});
 
   final SessaoController sessao;
+  final Future<Propriedade> Function(Propriedade)? salvarPropriedade;
 
   void _editar(BuildContext context) {
     final atual = sessao.propriedade;
@@ -237,18 +253,22 @@ class _SecaoPropriedade extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _EditarPropriedadeSheet(
-        propriedade: atual,
-        onSalvar: _salvar,
-      ),
+      builder: (_) =>
+          _EditarPropriedadeSheet(propriedade: atual, onSalvar: _salvar),
     );
   }
 
-  void _salvar(Propriedade nova) {
-    sessao.definirPropriedade(nova);
-    // Mantém a conta em dia, para a edição não se perder ao sair e entrar.
-    final login = sessao.login;
-    if (login != null) AuthService.atualizarPropriedade(login, nova);
+  Future<void> _salvar(Propriedade nova) async {
+    if (salvarPropriedade != null) {
+      sessao.definirPropriedade(await salvarPropriedade!(nova));
+      return;
+    }
+    final atual = sessao.propriedade;
+    final service = const PropriedadeService();
+    final salva = atual?.id == null
+        ? await service.salvar(nova)
+        : await service.atualizar(atual!.id!, nova);
+    sessao.definirPropriedade(salva);
   }
 
   // Para quem escolheu "Agora não" no login e quer cadastrar depois.
@@ -256,7 +276,23 @@ class _SecaoPropriedade extends StatelessWidget {
     final nova = await Navigator.of(context).push<Propriedade>(
       MaterialPageRoute(builder: (_) => const CadastroPropriedadeScreen()),
     );
-    if (nova != null) _salvar(nova);
+    if (nova != null) {
+      try {
+        await _salvar(nova);
+      } on ApiException catch (error) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error.message)));
+        }
+      } catch (error) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Não foi possível salvar: $error')),
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -281,10 +317,15 @@ class _SecaoPropriedade extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(56),
+            ),
             onPressed: () => _cadastrar(context),
             icon: const Icon(Icons.add_home_outlined),
-            label: const Text('Cadastrar propriedade', style: TextStyle(fontSize: 18)),
+            label: const Text(
+              'Cadastrar propriedade',
+              style: TextStyle(fontSize: 18),
+            ),
           ),
         ] else ...[
           Card(
@@ -305,17 +346,25 @@ class _SecaoPropriedade extends StatelessWidget {
                     rotulo: 'Estágio',
                     valor: p.estagio?.rotulo ?? 'Não informado',
                   ),
-                  _LinhaDado(rotulo: 'Localização', valor: _textoLocalizacao(p)),
+                  _LinhaDado(
+                    rotulo: 'Localização',
+                    valor: _textoLocalizacao(p),
+                  ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(56),
+            ),
             onPressed: () => _editar(context),
             icon: const Icon(Icons.edit_outlined),
-            label: const Text('Editar propriedade', style: TextStyle(fontSize: 18)),
+            label: const Text(
+              'Editar propriedade',
+              style: TextStyle(fontSize: 18),
+            ),
           ),
         ],
       ],
@@ -330,10 +379,11 @@ class _EditarPropriedadeSheet extends StatefulWidget {
   });
 
   final Propriedade propriedade;
-  final ValueChanged<Propriedade> onSalvar;
+  final Future<void> Function(Propriedade) onSalvar;
 
   @override
-  State<_EditarPropriedadeSheet> createState() => _EditarPropriedadeSheetState();
+  State<_EditarPropriedadeSheet> createState() =>
+      _EditarPropriedadeSheetState();
 }
 
 class _EditarPropriedadeSheetState extends State<_EditarPropriedadeSheet> {
@@ -342,6 +392,7 @@ class _EditarPropriedadeSheetState extends State<_EditarPropriedadeSheet> {
   late final TextEditingController _area;
   late TipoCultivo _cultivo;
   EstagioLavoura? _estagio;
+  bool _salvando = false;
 
   @override
   void initState() {
@@ -370,21 +421,39 @@ class _EditarPropriedadeSheetState extends State<_EditarPropriedadeSheet> {
     return null;
   }
 
-  void _salvar() {
+  Future<void> _salvar() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final textoArea = _area.text.trim();
     // A localização não muda aqui: ela é definida no cadastro da propriedade.
-    widget.onSalvar(
-      Propriedade(
-        nome: _nome.text.trim(),
-        cultivo: _cultivo,
-        localizacao: widget.propriedade.localizacao,
-        areaHectares:
-            textoArea.isEmpty ? null : double.parse(textoArea.replaceAll(',', '.')),
-        estagio: _estagio,
-      ),
+    final nova = Propriedade(
+      id: widget.propriedade.id,
+      nome: _nome.text.trim(),
+      cultivo: _cultivo,
+      localizacao: widget.propriedade.localizacao,
+      areaHectares: textoArea.isEmpty
+          ? null
+          : double.parse(textoArea.replaceAll(',', '.')),
+      estagio: _estagio,
     );
-    Navigator.of(context).pop();
+    setState(() => _salvando = true);
+    try {
+      await widget.onSalvar(nova);
+      if (mounted) Navigator.of(context).pop();
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível salvar: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _salvando = false);
+    }
   }
 
   @override
@@ -409,8 +478,9 @@ class _EditarPropriedadeSheetState extends State<_EditarPropriedadeSheet> {
                   labelText: 'Nome da propriedade',
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) =>
-                    (v ?? '').trim().isEmpty ? 'Digite o nome da propriedade' : null,
+                validator: (v) => (v ?? '').trim().isEmpty
+                    ? 'Digite o nome da propriedade'
+                    : null,
               ),
               const SizedBox(height: 16),
               Text('Cultivo', style: textTheme.titleMedium),
@@ -421,7 +491,10 @@ class _EditarPropriedadeSheetState extends State<_EditarPropriedadeSheet> {
                 children: [
                   for (final c in TipoCultivo.values)
                     ChoiceChip(
-                      label: Text(c.rotulo, style: const TextStyle(fontSize: 18)),
+                      label: Text(
+                        c.rotulo,
+                        style: const TextStyle(fontSize: 18),
+                      ),
                       selected: _cultivo == c,
                       onSelected: (_) => setState(() => _cultivo = c),
                     ),
@@ -436,7 +509,10 @@ class _EditarPropriedadeSheetState extends State<_EditarPropriedadeSheet> {
                 children: [
                   for (final e in EstagioLavoura.values)
                     ChoiceChip(
-                      label: Text(e.rotulo, style: const TextStyle(fontSize: 18)),
+                      label: Text(
+                        e.rotulo,
+                        style: const TextStyle(fontSize: 18),
+                      ),
                       selected: _estagio == e,
                       onSelected: (_) => setState(() => _estagio = e),
                     ),
@@ -445,7 +521,9 @@ class _EditarPropriedadeSheetState extends State<_EditarPropriedadeSheet> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _area,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 style: const TextStyle(fontSize: 18),
                 decoration: const InputDecoration(
                   labelText: 'Área em hectares (opcional)',
@@ -455,9 +533,14 @@ class _EditarPropriedadeSheetState extends State<_EditarPropriedadeSheet> {
               ),
               const SizedBox(height: 24),
               FilledButton(
-                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
-                onPressed: _salvar,
-                child: const Text('Salvar alterações', style: TextStyle(fontSize: 18)),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(56),
+                ),
+                onPressed: _salvando ? null : _salvar,
+                child: const Text(
+                  'Salvar alterações',
+                  style: TextStyle(fontSize: 18),
+                ),
               ),
             ],
           ),
@@ -472,11 +555,12 @@ class _EditarPropriedadeSheetState extends State<_EditarPropriedadeSheet> {
 // ---------------------------------------------------------------------------
 
 class _SecaoAlertas extends StatelessWidget {
-  const _SecaoAlertas({required this.sessao});
+  const _SecaoAlertas({required this.sessao, this.salvarPreferencias});
 
   final SessaoController sessao;
+  final Future<void> Function(PreferenciasAlerta)? salvarPreferencias;
 
-  void _alterar(BuildContext context, PreferenciasAlerta novas) {
+  Future<void> _alterar(BuildContext context, PreferenciasAlerta novas) async {
     if (!novas.algumAtivo) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -488,7 +572,28 @@ class _SecaoAlertas extends StatelessWidget {
       );
       return;
     }
-    sessao.atualizarPreferencias(novas);
+    try {
+      if (salvarPreferencias == null) {
+        await AuthService().atualizarPreferencias(novas.toJson());
+      } else {
+        await salvarPreferencias!(novas);
+      }
+      if (context.mounted) sessao.atualizarPreferencias(novas);
+    } on ApiException catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Não foi possível salvar as preferências: $error'),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -540,12 +645,17 @@ class _SecaoAlertas extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
-          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(56),
+          ),
           onPressed: () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const ModoOfflineScreen()),
           ),
           icon: const Icon(Icons.wifi_off_outlined),
-          label: const Text('Como funciona sem internet', style: TextStyle(fontSize: 18)),
+          label: const Text(
+            'Como funciona sem internet',
+            style: TextStyle(fontSize: 18),
+          ),
         ),
       ],
     );
@@ -557,10 +667,11 @@ class _SecaoAlertas extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _BotaoSair extends StatelessWidget {
-  const _BotaoSair({required this.sessao, this.onSair});
+  const _BotaoSair({required this.sessao, this.onSair, this.sairDaConta});
 
   final SessaoController sessao;
   final VoidCallback? onSair;
+  final Future<void> Function()? sairDaConta;
 
   Future<void> _confirmarSaida(BuildContext context) async {
     final confirmou = await showDialog<bool>(
@@ -586,6 +697,27 @@ class _BotaoSair extends StatelessWidget {
     if (confirmou != true || !context.mounted) return;
 
     final navigator = Navigator.of(context);
+    try {
+      if (sairDaConta == null) {
+        await AuthService().sair();
+      } else {
+        await sairDaConta!();
+      }
+    } on ApiException catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      return;
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível sair: $error')),
+        );
+      }
+      return;
+    }
     sessao.sair();
     if (onSair != null) {
       onSair!();

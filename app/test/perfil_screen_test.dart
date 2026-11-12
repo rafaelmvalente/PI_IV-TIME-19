@@ -1,3 +1,7 @@
+// Nome: Rafael Mendes Valente - RA: 25002875
+// Data: 11/11/2026
+// Descrição: Valida a tela Perfil com persistência da API simulada.
+
 import 'package:app/models/coordenada.dart';
 import 'package:app/models/estagio_lavoura.dart';
 import 'package:app/models/propriedade.dart';
@@ -38,6 +42,9 @@ Future<void> _abrir(
         sessao: sessao,
         onSair: onSair,
         onTentarNovamente: onTentarNovamente,
+        salvarPropriedade: (propriedade) async => propriedade,
+        salvarPreferencias: (_) async {},
+        sairDaConta: () async {},
       ),
     ),
   );
@@ -57,17 +64,17 @@ void main() {
     expect(find.text('Sítio Boa Vista'), findsOneWidget);
     expect(find.text('Milho'), findsOneWidget);
     expect(find.text('3,5 ha'), findsOneWidget);
-    expect(
-      find.text('Latitude -22.9056, longitude -47.0608'),
-      findsOneWidget,
-    );
+    expect(find.text('Latitude -22.9056, longitude -47.0608'), findsOneWidget);
   });
 
   testWidgets('avisa quando não há propriedade cadastrada', (tester) async {
     final sessao = SessaoController()..entrar(login: 'antonio@exemplo.com');
     await _abrir(tester, sessao);
 
-    expect(find.text('Você ainda não cadastrou uma propriedade.'), findsOneWidget);
+    expect(
+      find.text('Você ainda não cadastrou uma propriedade.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('sem propriedade, o botão abre o cadastro', (tester) async {
@@ -107,8 +114,9 @@ void main() {
     expect(sessao.preferencias.voz, isTrue);
   });
 
-  testWidgets('não deixa desligar todos os jeitos de receber alerta',
-      (tester) async {
+  testWidgets('não deixa desligar todos os jeitos de receber alerta', (
+    tester,
+  ) async {
     final sessao = _sessaoLogada(); // só "Texto" está ligado
     await _abrir(tester, sessao);
 
