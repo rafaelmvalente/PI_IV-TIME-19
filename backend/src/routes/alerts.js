@@ -6,70 +6,12 @@ import { Router } from 'express';
 import { ObjectId } from 'mongodb';
 import { z } from 'zod';
 import { authenticate } from '../middleware/authenticate.js';
-import { generateRiskAlerts } from '../services/risk.js';
-import { getForecast } from '../services/weather.js';
+import { inicioDoDia, refreshAlerts } from '../services/alertas.js';
+export { refreshAlerts };
 
 const router = Router();
 const statuses = ['emAndamento', 'acaoRealizada', 'resolvido'];
 const types = ['geada', 'seca', 'chuvaForte'];
-
-export async function refreshAlerts(database, property) {
-  const cacheCollection = database.collection('climaCache');
-  // Reaproveita a previsão recente para limitar consultas ao provedor climático.
-  const cached = await cacheCollection.findOne({
-    _id: property._id,
-    atualizadoEm: { $gt: new Date(Date.now() - 3 * 60 * 60_000) },
-  });
-  const forecast = cached?.forecast ?? await getForecast(
-    property.localizacao.latitude,
-    property.localizacao.longitude,
-  );
-  if (!cached) {
-    await cacheCollection.updateOne(
-      { _id: property._id },
-      { $set: { propriedadeId: property._id, forecast, atualizadoEm: new Date() } },
-      { upsert: true },
-    );
-  }
-
-  const rule = await database.collection('risco_cultura').findOne({
-    cultura: property.cultivo,
-    estagio: property.estagio ?? 'crescimento',
-  });
-  if (!rule) {
-    throw Object.assign(
-      new Error('Não há regra de risco cadastrada para a cultura e estágio desta propriedade.'),
-      { status: 503, code: 'RISK_RULE_NOT_FOUND' },
-    );
-  }
-
-  const alerts = generateRiskAlerts(property, forecast, rule);
-  const collection = database.collection('alertas');
-  for (const alert of alerts) {
-    await collection.updateOne(
-      {
-        propriedadeId: property._id,
-        tipo: alert.tipo,
-        previstoPara: alert.previstoPara,
-      },
-      {
-        $setOnInsert: { ...alert, criadoEm: new Date() },
-        $set: {
-          nivel: alert.nivel,
-          descricao: alert.descricao,
-          recomendacao: alert.recomendacao,
-          atualizadoEm: alert.atualizadoEm,
-        },
-      },
-      { upsert: true },
-    );
-  }
-
-  return collection
-    .find({ propriedadeId: property._id })
-    .sort({ previstoPara: 1 })
-    .toArray();
-}
 
 export function serializeAlert(alert) {
   return {
@@ -107,7 +49,9 @@ router.get('/', async (req, res) => {
   if (query.periodo === 'proximos') await refreshAlerts(req.db, property);
   const filter = { propriedadeId: propertyId };
   if (query.tipo) filter.tipo = query.tipo;
-  filter.previstoPara = query.periodo === 'historico' ? { $lt: new Date() } : { $gte: new Date() };
+  // Corta no início do dia de Brasília: o alerta de hoje (12:00 UTC) fica em "próximos" o dia todo.
+  const hoje = inicioDoDia();
+  filter.previstoPara = query.periodo === 'historico' ? { $lt: hoje } : { $gte: hoje };
   const alerts = await req.db.collection('alertas')
     .find(filter)
     .sort({ previstoPara: query.periodo === 'historico' ? -1 : 1 })
