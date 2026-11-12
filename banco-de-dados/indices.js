@@ -23,11 +23,12 @@ function criarIndice(colecao, chaves, opcoes) {
     db.runCommand({ collMod: colecao, index: { keyPattern: chaves, expireAfterSeconds: opcoes.expireAfterSeconds } });
     print("            TTL ajustado para " + opcoes.expireAfterSeconds + " segundos");
   }
-  if (opcoes.unique && !existente.unique) {
-    print("            ATENÇÃO: o índice existente não está configurado como único.");
-  }
-  if (opcoes.sparse && !existente.sparse) {
-    print("            ATENÇÃO: o índice existente não está configurado como sparse.");
+  // Recria o índice quando nome, unique ou sparse diferem: o backend chama
+  // createIndex com essas opções ao iniciar e falharia com IndexOptionsConflict.
+  if (existente.name !== opcoes.name || !!opcoes.unique !== !!existente.unique || !!opcoes.sparse !== !!existente.sparse) {
+    c.dropIndex(existente.name);
+    c.createIndex(chaves, opcoes);
+    print("            recriado como " + opcoes.name + " com as opções novas");
   }
 }
 
