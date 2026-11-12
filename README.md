@@ -4,7 +4,7 @@
 
 O ClimAlerta é uma aplicação que avisa pequenos produtores rurais sobre riscos climáticos para a sua lavoura antes que eles aconteçam.
 
-O sistema cruza dados meteorológicos públicos (INMET / OpenWeather) com a localização da propriedade, a cultura plantada e o estágio da lavoura, e transforma a previsão do tempo em um alerta simples, acompanhado de uma recomendação prática.
+O sistema cruza dados meteorológicos públicos (Open-Meteo) com a localização da propriedade, a cultura plantada e o estágio da lavoura, e transforma a previsão do tempo em um alerta simples, acompanhado de uma recomendação prática.
 
 Em vez de apenas informar a temperatura, o sistema avisa o risco real e o que fazer. Exemplo:
 
@@ -75,7 +75,7 @@ A tela inicial apresenta:
 - Aplicativo (cliente): Flutter (Dart)
 - Backend: Node.js (API REST)
 - Servidor: Java 21 puro, com threads e sockets (validação de telefone, em `servidor-java/`)
-- Banco de dados: MongoDB
+- Banco de dados: MongoDB (usuários, propriedades, alertas, tabela de risco por cultura, cache do clima e leituras diárias de chuva)
 - Testes automatizados: JUnit 5, Mockito
-- Integrações: INMET / OpenWeather (clima), Firebase Cloud Messaging (push) e Twilio (SMS)
+- Integrações: Open-Meteo (clima) e Twilio (SMS)
 - Controle de versão: Git, GitHub e GitHub Projects
