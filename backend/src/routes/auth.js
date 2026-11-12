@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { env } from '../config/env.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { toE164 } from '../services/sms.js';
+import { confirmarTelefone } from '../services/validacaoTelefone.js';
 
 const router = Router();
 const passwordSchema = z.string().min(8).max(128);
@@ -50,6 +51,7 @@ router.post('/register', async (req, res) => {
       path: ['email'],
     })
     .parse(req.body);
+  if (body.telefone) await confirmarTelefone(body.telefone);
 
   const user = {
     nome: body.nome,
@@ -128,6 +130,7 @@ router.patch('/me/telefone', authenticate, async (req, res) => {
         .refine((value) => toE164(value), { message: 'Informe o telefone com DDD.' }),
     })
     .parse(req.body);
+  await confirmarTelefone(telefone);
 
   const user = await req.db.collection('usuarios').findOneAndUpdate(
     { _id: req.userId },

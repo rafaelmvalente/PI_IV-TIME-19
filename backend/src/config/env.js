@@ -36,4 +36,10 @@ export const env = {
   },
   // Coleta e análise automática (issue #8). 0 desliga o agendamento.
   coletaIntervaloMinutos: Number(process.env.COLETA_INTERVALO_MINUTOS ?? 180),
+  // Servidor Java de validação de telefone (issue #73). Sem o classpath, fica desligado.
+  validadorJava: {
+    classpath: process.env.JAVA_VALIDADOR_CLASSPATH,
+    host: process.env.JAVA_VALIDADOR_HOST ?? 'localhost',
+    porta: Number(process.env.JAVA_VALIDADOR_PORTA ?? 3001),
+  },
 };
