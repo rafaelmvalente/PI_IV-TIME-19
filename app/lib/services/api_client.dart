@@ -44,6 +44,11 @@ class ApiClient {
     await preferences.remove(_tokenKey);
   }
 
+  Future<bool> temToken() async {
+    final preferences = await SharedPreferences.getInstance();
+    return preferences.getString(_tokenKey)?.isNotEmpty ?? false;
+  }
+
   Future<Object?> get(String path, {Map<String, String>? queryParameters}) {
     return _send('GET', path, queryParameters: queryParameters);
   }

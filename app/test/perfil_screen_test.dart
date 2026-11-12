@@ -30,6 +30,7 @@ Future<void> _abrir(
   SessaoController sessao, {
   VoidCallback? onSair,
   VoidCallback? onTentarNovamente,
+  Future<String> Function(String)? salvarTelefone,
 }) async {
   // Tela alta para tudo ficar visível sem precisar rolar.
   tester.view.physicalSize = const Size(800, 2400);
@@ -44,6 +45,7 @@ Future<void> _abrir(
         onTentarNovamente: onTentarNovamente,
         salvarPropriedade: (propriedade) async => propriedade,
         salvarPreferencias: (_) async {},
+        salvarTelefone: salvarTelefone ?? (telefone) async => telefone,
         sairDaConta: () async {},
       ),
     ),
@@ -112,6 +114,49 @@ void main() {
     await tester.pump();
 
     expect(sessao.preferencias.voz, isTrue);
+  });
+
+  testWidgets('ligar SMS sem telefone pede o número e salva', (tester) async {
+    final sessao = _sessaoLogada();
+    String? enviado;
+    await _abrir(
+      tester,
+      sessao,
+      salvarTelefone: (telefone) async => enviado = telefone,
+    );
+
+    await tester.tap(find.text('SMS'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '(19) 98765-4321');
+    await tester.tap(find.text('Salvar'));
+    await tester.pumpAndSettle();
+
+    expect(enviado, '(19) 98765-4321');
+    expect(sessao.telefone, '(19) 98765-4321');
+    expect(sessao.preferencias.sms, isTrue);
+  });
+
+  testWidgets('cancelar o telefone deixa o SMS desligado', (tester) async {
+    final sessao = _sessaoLogada();
+    await _abrir(tester, sessao);
+
+    await tester.tap(find.text('SMS'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+
+    expect(sessao.preferencias.sms, isFalse);
+  });
+
+  testWidgets('com telefone na conta, liga o SMS direto', (tester) async {
+    final sessao = _sessaoLogada()..definirTelefone('19987654321');
+    await _abrir(tester, sessao);
+
+    await tester.tap(find.text('SMS'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(sessao.preferencias.sms, isTrue);
   });
 
   testWidgets('não deixa desligar todos os jeitos de receber alerta', (
