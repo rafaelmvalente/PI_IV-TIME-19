@@ -4,15 +4,27 @@
 // telefone da conta e recebe o link para criar uma senha nova. Quem abre a
 // tela passa em [onEnviar] a chamada que faz o envio (AuthService.recuperarSenha).
 // Sem [onEnviar], a tela avisa que o serviço não está disponível.
+// Com o link em mãos, o produtor segue para a tela de senha nova (issue #71).
 
 import 'package:flutter/material.dart';
 
+import 'redefinir_senha_screen.dart';
+
 class RecuperarSenhaScreen extends StatefulWidget {
-  const RecuperarSenhaScreen({super.key, this.loginInicial, this.onEnviar});
+  const RecuperarSenhaScreen({
+    super.key,
+    this.loginInicial,
+    this.onEnviar,
+    this.onRedefinir,
+  });
 
   /// E-mail ou telefone já digitado na tela de login.
   final String? loginInicial;
   final Future<void> Function(String login)? onEnviar;
+
+  /// Troca a senha com o código do e-mail (AuthService.redefinirSenha).
+  /// Sem ele, o botão "Já tenho o link" não aparece.
+  final Future<void> Function(String token, String novaSenha)? onRedefinir;
 
   @override
   State<RecuperarSenhaScreen> createState() => _RecuperarSenhaScreenState();
@@ -81,6 +93,26 @@ class _RecuperarSenhaScreenState extends State<RecuperarSenhaScreen> {
       });
     }
   }
+
+  Future<void> _abrirRedefinir() async {
+    final redefinir = widget.onRedefinir!;
+    final alterada = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => RedefinirSenhaScreen(onRedefinir: redefinir),
+      ),
+    );
+    // Senha trocada: volta direto para o login.
+    if (alterada == true && mounted) Navigator.of(context).pop();
+  }
+
+  Widget _botaoJaTenhoLink() => TextButton(
+        style: TextButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+        onPressed: _abrirRedefinir,
+        child: const Text(
+          'Já tenho o link do e-mail',
+          style: TextStyle(fontSize: 18),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -160,6 +192,10 @@ class _RecuperarSenhaScreenState extends State<RecuperarSenhaScreen> {
                     style: TextStyle(fontSize: 18),
                   ),
           ),
+          if (widget.onRedefinir != null && !_enviando) ...[
+            const SizedBox(height: 8),
+            _botaoJaTenhoLink(),
+          ],
         ],
       ),
     );
@@ -188,8 +224,21 @@ class _RecuperarSenhaScreenState extends State<RecuperarSenhaScreen> {
           style: textTheme.bodyLarge?.copyWith(fontSize: 18),
         ),
         const SizedBox(height: 32),
-        FilledButton(
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+        if (widget.onRedefinir != null) ...[
+          FilledButton(
+            style:
+                FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+            onPressed: _abrirRedefinir,
+            child: const Text(
+              'Criar senha nova',
+              style: TextStyle(fontSize: 18),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        OutlinedButton(
+          style:
+              OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(56)),
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Voltar para o login', style: TextStyle(fontSize: 18)),
         ),
