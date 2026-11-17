@@ -7,6 +7,7 @@ import 'package:app/models/estagio_lavoura.dart';
 import 'package:app/models/propriedade.dart';
 import 'package:app/screens/cadastro_propriedade_screen.dart';
 import 'package:app/screens/perfil_screen.dart';
+import 'package:app/screens/splash_screen.dart';
 import 'package:app/session/sessao.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -220,5 +221,20 @@ void main() {
 
     expect(sessao.logado, isFalse);
     expect(saiu, isTrue);
+  });
+
+  // Com login salvo o app abre direto no dashboard, que vira a primeira tela.
+  // Sair precisa voltar para a splash mesmo assim.
+  testWidgets('sem tela anterior, sair volta para a splash', (tester) async {
+    final sessao = _sessaoLogada();
+    await _abrir(tester, sessao);
+
+    await tester.tap(find.text('Sair da conta'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sair'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PerfilScreen), findsNothing);
+    expect(find.byType(SplashScreen), findsOneWidget);
   });
 }

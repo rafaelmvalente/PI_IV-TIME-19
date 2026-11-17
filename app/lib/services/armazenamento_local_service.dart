@@ -13,6 +13,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/alerta.dart';
 import '../models/clima.dart';
+import '../models/propriedade.dart';
+import '../models/usuario.dart';
+import 'auth_service.dart';
 
 class ArmazenamentoLocalService {
   const ArmazenamentoLocalService();
@@ -21,6 +24,54 @@ class ArmazenamentoLocalService {
   static const _prefixoChaveClima = 'cache_clima_';
   static const _prefixoChavePrevisao = 'cache_previsao_';
   static const _chaveAtualizadoEm = 'cache_atualizado_em';
+  static const _chaveConta = 'cache_conta';
+
+  // ---------- Conta ----------
+
+  // Guarda quem entrou e a propriedade atual, para o app abrir sem internet
+  // direto no dashboard. O token continua guardado pelo ApiClient.
+  Future<void> salvarConta(Conta conta) async {
+    final prefs = await SharedPreferences.getInstance();
+    final propriedade = conta.propriedade;
+    await prefs.setString(
+      _chaveConta,
+      jsonEncode({
+        'login': conta.login,
+        'usuario': conta.usuario.toJson(),
+        // O toJson da propriedade não leva o id (é o corpo enviado à API),
+        // mas o dashboard precisa dele para achar os alertas no cache.
+        if (propriedade != null)
+          'propriedade': {'id': propriedade.id, ...propriedade.toJson()},
+      }),
+    );
+  }
+
+  // Devolve null se não houver conta salva ou se ela estiver corrompida.
+  Future<Conta?> lerConta() async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString(_chaveConta);
+    if (json == null) return null;
+
+    try {
+      final dados = jsonDecode(json) as Map<String, dynamic>;
+      final propriedade = dados['propriedade'] as Map<String, dynamic>?;
+      return Conta(
+        login: dados['login'] as String,
+        usuario: Usuario.fromJson(dados['usuario'] as Map<String, dynamic>),
+        propriedade: propriedade == null
+            ? null
+            : Propriedade.fromJson(propriedade),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Chamado ao sair da conta ou quando o login expira.
+  Future<void> apagarConta() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_chaveConta);
+  }
 
   // ---------- Cache ----------
 

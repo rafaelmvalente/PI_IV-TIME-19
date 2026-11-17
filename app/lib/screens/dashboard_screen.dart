@@ -16,14 +16,19 @@ import '../models/alerta.dart';
 import '../models/clima.dart';
 import '../models/propriedade.dart';
 import '../services/alerta_service.dart';
+import '../services/api_client.dart';
+import '../services/armazenamento_local_service.dart';
+import '../services/auth_service.dart';
 import '../services/clima_service.dart';
 import '../session/sessao.dart';
 import '../widgets/alerta_visual.dart';
+import '../widgets/aviso_dados_salvos.dart';
 import 'alertas_screen.dart';
 import 'detalhe_alerta_screen.dart';
 import 'historico_screen.dart';
 import 'modo_offline_screen.dart';
 import 'perfil_screen.dart';
+import 'splash_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   // A propriedade pode ser nula quando o produtor ainda não cadastrou nenhuma.
@@ -34,6 +39,7 @@ class DashboardScreen extends StatefulWidget {
     this.carregarHistorico,
     this.carregarPrevisao,
     this.atualizarStatusAlerta,
+    this.conferirConta,
   });
 
   final Propriedade? propriedade;
@@ -43,6 +49,8 @@ class DashboardScreen extends StatefulWidget {
   carregarPrevisao;
   final Future<Alerta> Function(Alerta alerta, StatusAlerta status)?
   atualizarStatusAlerta;
+  // Confere a conta na API quando a internet volta (nos testes, simulada).
+  final Future<Conta?> Function()? conferirConta;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -65,6 +73,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _propriedadeIdAtual;
   Future<List<Alerta>> _alertas = Future.value(const <Alerta>[]);
   Future<PrevisaoClimatica>? _previsao;
+
+  // Sem internet, o dashboard mostra os dados salvos e de quando eles são.
+  bool _semInternet = false;
+  DateTime? _dadosSalvosEm;
 
   @override
   void didChangeDependencies() {
@@ -99,6 +111,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  // Quando a internet volta: busca alertas e clima novos na API e confere se
+  // a conta ainda vale (o app pode ter aberto com a conta salva no celular).
+  Future<void> _aoMudarConexao(bool online) async {
+    if (!online) {
+      final salvosEm = await const ArmazenamentoLocalService()
+          .ultimaAtualizacao();
+      if (!mounted) return;
+      setState(() {
+        _semInternet = true;
+        _dadosSalvosEm = salvosEm;
+      });
+      return;
+    }
+    setState(() => _semInternet = false);
+    _recarregarDados();
+
+    final conta =
+        await (widget.conferirConta ?? AuthService().restaurarSessao)();
+    if (!mounted) return;
+    final sessao = SessaoScope.of(context);
+
+    if (conta == null) {
+      // Só sai quando o login expirou (o token foi apagado). Se a API deu
+      // outro erro, o produtor continua vendo os dados salvos.
+      if (await ApiClient().temToken() || !mounted) return;
+      // O login expirou: volta para o início para o produtor entrar de novo.
+      sessao.sair();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const SplashScreen()),
+        (_) => false,
+      );
+      return;
+    }
+
+    // Atualiza a sessão com os dados da API (ex.: propriedade editada em
+    // outro aparelho enquanto este estava sem internet).
+    sessao.entrar(
+      login: conta.login,
+      nome: conta.usuario.nome,
+      telefone: conta.usuario.telefone,
+      propriedade: conta.propriedade,
+      preferencias: conta.usuario.preferencias,
+    );
+  }
+
   void _irPara(int aba) => setState(() => _aba = aba);
 
   void _abrirDetalhe(Alerta alerta) {
@@ -117,7 +174,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     // AvisoModoOffline abre a tela 10 quando o aparelho fica sem internet.
-    return AvisoModoOffline(child: _buildTela());
+    return AvisoModoOffline(
+      aoMudarConexao: _aoMudarConexao,
+      child: _buildTela(),
+    );
   }
 
   Widget _buildTela() {
@@ -189,6 +249,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildCabecalho(),
+                if (_semInternet) ...[
+                  const SizedBox(height: 14),
+                  AvisoDadosSalvos(atualizadoEm: _dadosSalvosEm),
+                ],
                 const SizedBox(height: 18),
                 _buildClima(),
                 if (destaque != null) ...[

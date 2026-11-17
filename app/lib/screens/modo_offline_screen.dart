@@ -37,10 +37,15 @@ class AvisoModoOffline extends StatefulWidget {
     super.key,
     required this.child,
     this.servico = const ArmazenamentoLocalService(),
+    this.aoMudarConexao,
   });
 
   final Widget child;
   final ArmazenamentoLocalService servico;
+
+  // Avisa a tela de dentro (ex.: o Dashboard) quando a conexão cai ou volta,
+  // para ela buscar os dados novos assim que a internet voltar.
+  final void Function(bool online)? aoMudarConexao;
 
   @override
   State<AvisoModoOffline> createState() => _AvisoModoOfflineState();
@@ -72,6 +77,7 @@ class _AvisoModoOfflineState extends State<AvisoModoOffline> {
 
   Future<void> _aoMudarConexao(bool online) async {
     if (!mounted) return;
+    widget.aoMudarConexao?.call(online);
 
     if (online) {
       if (_avisoAberto) Navigator.of(context).pop();
