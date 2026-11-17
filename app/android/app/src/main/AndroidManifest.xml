@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Internet para falar com o backend (Render). No "flutter run" o Flutter
+         já libera sozinho, mas o APK instalado precisa pedir aqui. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Localização usada no cadastro da propriedade (geolocator).
          FINE = GPS preciso; COARSE = aproximada (o Android 12+ deixa o
          usuário escolher entre as duas). -->
