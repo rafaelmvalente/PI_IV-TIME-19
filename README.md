@@ -79,3 +79,11 @@ A tela inicial apresenta:
 - Testes automatizados: JUnit 5, Mockito
 - Integrações: Open-Meteo (clima) e Twilio (SMS)
 - Controle de versão: Git, GitHub e GitHub Projects
+
+## Preparar o banco de dados
+
+Os scripts ficam em `banco-de-dados/` e rodam no `mongosh` (ou na aba MongoSH do Compass), com um usuário que tenha permissão de administrador do banco. Podem rodar mais de uma vez. A ordem é:
+
+1. `validadores.js`: regras de validação de `usuarios`, `propriedades`, `alertas` e `climaCache`
+2. `indices.js`: índices das consultas e expiração do cache
+3. `risco_cultura.js`: tabela de risco por cultura e estágio da lavoura
