@@ -18,6 +18,7 @@ import '../services/propriedade_service.dart';
 import '../session/sessao.dart';
 import 'cadastro_propriedade_screen.dart';
 import 'modo_offline_screen.dart';
+import 'splash_screen.dart';
 
 class PerfilScreen extends StatelessWidget {
   const PerfilScreen({
@@ -801,7 +802,12 @@ class _BotaoSair extends StatelessWidget {
     if (onSair != null) {
       onSair!();
     } else {
-      navigator.popUntil((rota) => rota.isFirst);
+      // Começa uma pilha nova com a splash. Voltar até a primeira tela não
+      // basta: quando o app abre com login salvo, o dashboard já é a primeira.
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const SplashScreen()),
+        (_) => false,
+      );
     }
   }
 

@@ -4,7 +4,9 @@
 
 import 'dart:convert';
 
+import 'package:app/models/usuario.dart';
 import 'package:app/services/api_client.dart';
+import 'package:app/services/armazenamento_local_service.dart';
 import 'package:app/services/auth_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
@@ -145,6 +147,76 @@ void main() {
       expect(conta, isNull);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('api_access_token'), isNull);
+    });
+
+    const local = ArmazenamentoLocalService();
+    const contaSalva = Conta(
+      login: 'ana@example.com',
+      usuario: Usuario(id: 'u1', nome: 'Ana'),
+    );
+
+    test('sem internet abre com a conta salva no celular', () async {
+      SharedPreferences.setMockInitialValues({'api_access_token': 'abc'});
+      await local.salvarConta(contaSalva);
+
+      final conta = await servico(
+        (_) async => throw http.ClientException('sem conexão'),
+      ).restaurarSessao();
+
+      expect(conta?.login, 'ana@example.com');
+      expect(conta?.usuario.nome, 'Ana');
+    });
+
+    test('sem internet e sem conta salva não abre nada', () async {
+      SharedPreferences.setMockInitialValues({'api_access_token': 'abc'});
+
+      final conta = await servico(
+        (_) async => throw http.ClientException('sem conexão'),
+      ).restaurarSessao();
+
+      expect(conta, isNull);
+    });
+
+    test('com internet atualiza a conta salva', () async {
+      SharedPreferences.setMockInitialValues({'api_access_token': 'abc'});
+      await local.salvarConta(contaSalva);
+
+      await servico((request) async {
+        if (request.url.path.endsWith('/auth/me')) {
+          return json({
+            'id': 'u1',
+            'nome': 'Ana Souza',
+            'email': 'ana@example.com',
+          });
+        }
+        return json([]);
+      }).restaurarSessao();
+
+      expect((await local.lerConta())?.usuario.nome, 'Ana Souza');
+    });
+
+    test('token expirado apaga também a conta salva', () async {
+      SharedPreferences.setMockInitialValues({'api_access_token': 'velho'});
+      await local.salvarConta(contaSalva);
+
+      await servico(
+        (_) async => json({
+          'error': {'code': 'INVALID_TOKEN', 'message': 'Token inválido.'},
+        }, 401),
+      ).restaurarSessao();
+
+      expect(await local.lerConta(), isNull);
+    });
+
+    test('sair apaga o token e a conta salva', () async {
+      SharedPreferences.setMockInitialValues({'api_access_token': 'abc'});
+      await local.salvarConta(contaSalva);
+
+      await servico((_) async => json({})).sair();
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('api_access_token'), isNull);
+      expect(await local.lerConta(), isNull);
     });
   });
 }
