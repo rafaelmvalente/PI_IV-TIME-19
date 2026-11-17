@@ -1,0 +1,14 @@
+# Nome: Vinicius Santuci Virgolino - RA: 25000294
+# Data: 17/11/2026
+# Descrição: Envia ao Docker só o backend e o servidor Java. Fica de fora o
+# .env (senhas), o node_modules (é instalado de novo) e o app Flutter.
+
+*
+!backend/
+!servidor-java/
+
+backend/node_modules
+backend/.env
+backend/test
+backend/suporte-de-testes
+servidor-java/**/*.class
