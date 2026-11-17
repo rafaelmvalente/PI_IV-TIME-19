@@ -79,6 +79,7 @@ A tela inicial apresenta:
 - Testes automatizados: JUnit 5, Mockito
 - Integrações: Open-Meteo (clima) e Twilio (SMS)
 - Controle de versão: Git, GitHub e GitHub Projects
+- Hospedagem: Render (backend e servidor Java, com Docker) e MongoDB Atlas (banco)
 
 ## Preparar o banco de dados
 
@@ -87,3 +88,24 @@ Os scripts ficam em `banco-de-dados/` e rodam no `mongosh` (ou na aba MongoSH do
 1. `validadores.js`: regras de validação de `usuarios`, `propriedades`, `alertas` e `climaCache`
 2. `indices.js`: índices das consultas e expiração do cache
 3. `risco_cultura.js`: tabela de risco por cultura e estágio da lavoura
+
+## Backend publicado
+
+O backend e o servidor Java estão no ar no Render, ligados ao banco no MongoDB Atlas:
+
+- API: `https://pi-iv-time-19.onrender.com/api/v1`
+- Conferir se está no ar: [`/api/v1/health`](https://pi-iv-time-19.onrender.com/api/v1/health) responde `{"status":"ok"}`
+
+Para abrir o app usando o backend publicado (sem precisar rodar o backend no computador):
+
+```
+cd app
+flutter run -d chrome --dart-define=API_URL=https://pi-iv-time-19.onrender.com/api/v1
+```
+
+Como funciona a publicação:
+
+- O `Dockerfile` (na raiz) monta o Node e o Java no mesmo serviço: compila o `servidor-java/`, sobe o servidor Java na porta 3001 (interna) e depois o backend na porta pública
+- As senhas ficam nas variáveis de ambiente do Render, fora do Git: `MONGODB_URI`, `MONGODB_DATABASE`, `JWT_SECRET`, `CORS_ORIGIN` e `COLETA_INTERVALO_MINUTOS`
+- O plano gratuito do Render desliga o serviço depois de 15 minutos sem acesso. Uma tarefa no cron-job.org acessa o `/api/v1/health` a cada 10 minutos para mantê-lo ligado e a coleta agendada rodando
+- **O Render não atualiza sozinho:** depois de um merge no `main` que mexa no backend ou no servidor Java, é preciso entrar no Render e clicar em **Manual Deploy → Deploy latest commit**
