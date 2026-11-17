@@ -70,6 +70,10 @@ class _LoginScreenState extends State<LoginScreen> {
         builder: (_) => RecuperarSenhaScreen(
           loginInicial: _loginController.text,
           onEnviar: _authService.recuperarSenha,
+          onRedefinir: (token, novaSenha) => _authService.redefinirSenha(
+            token: token,
+            novaSenha: novaSenha,
+          ),
         ),
       ),
     );
