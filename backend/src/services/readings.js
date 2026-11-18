@@ -2,6 +2,7 @@
 // Data: 11/11/2026
 // Descrição: Grava e consulta as leituras diárias de clima da propriedade (coleção leituras_clima).
 
+import { inicioDoDia } from './alertas.js';
 import { getPastDays } from './weather.js';
 
 export const HISTORY_DAYS = 30;
@@ -45,8 +46,11 @@ export function getReadings(database, propertyId, days = HISTORY_DAYS) {
 
 // Busca no provedor só quando falta a leitura de ontem, para não consultar a
 // API a cada atualização de alertas. Se o provedor falhar, usa o que já está salvo.
-export async function syncReadings(database, property, { fetchPastDays = getPastDays, logger = console } = {}) {
-  const yesterday = new Date(Date.now() - DAY_MS).toISOString().slice(0, 10);
+// "Ontem" é calculado no fuso do produtor (#75): em UTC, depois das 21h de
+// Brasília, "ontem" já seria o dia de hoje, que nunca é salvo, e a API seria
+// consultada de novo a cada atualização. (agora: para os testes.)
+export async function syncReadings(database, property, { fetchPastDays = getPastDays, logger = console, agora = new Date() } = {}) {
+  const yesterday = new Date(inicioDoDia(agora).getTime() - DAY_MS).toISOString().slice(0, 10);
   const hasYesterday = await database.collection('leituras_clima').findOne(
     { propriedadeId: property._id, data: dayToDate(yesterday) },
     { projection: { _id: 1 } },

@@ -12,6 +12,9 @@
 import { generateRiskAlerts } from './risk.js';
 
 const TRES_HORAS = 3 * 60 * 60_000;
+// Seca que continua (mesmo alternando entre seca prolongada e seca da semana)
+// atualiza o alerta aberto destes últimos dias em vez de criar outro (#75).
+const JANELA_DA_SECA = 7 * 24 * 60 * 60_000;
 const GRAVIDADE = { medio: 1, alto: 2 };
 const FUSO_DO_PRODUTOR = 'America/Sao_Paulo';
 
@@ -76,6 +79,24 @@ async function buscarRegraDaCultura(database, property) {
   return regra;
 }
 
+// Alerta de seca ainda aberto (não resolvido), o mais recente. Conta como aberto
+// se for previsto para os últimos 7 dias ou depois, OU se foi gerado de novo
+// nesse período (atualizadoEm): a data da seca prolongada fica fixa no dia em
+// que a sequência passou do limite e pode ter mais de 7 dias enquanto a seca dura.
+// O filtro de datas fica no JavaScript porque o banco falso dos testes não tem $or.
+async function buscarSecaAberta(colecao, propertyId) {
+  const limite = new Date(inicioDoDia().getTime() - JANELA_DA_SECA);
+  const secas = await colecao
+    .find({
+      propriedadeId: propertyId,
+      tipo: 'seca',
+      status: { $in: ['emAndamento', 'acaoRealizada'] },
+    })
+    .sort({ previstoPara: -1 })
+    .toArray();
+  return secas.find((seca) => seca.previstoPara >= limite || seca.atualizadoEm >= limite) ?? null;
+}
+
 // Salva um alerta que ainda não existe. Devolve o alerta salvo, ou null se
 // outra execução criou o mesmo alerta ao mesmo tempo (índice único do banco).
 async function salvarNovoAlerta(colecao, alerta) {
@@ -121,7 +142,13 @@ export async function gerarAlertas(database, property, {
   const elevados = [];
 
   for (const alerta of gerados) {
-    const atual = existentes.get(chave(alerta));
+    let atual = existentes.get(chave(alerta));
+    // A seca pode mudar de data ao alternar entre as duas medidas (#75):
+    // continua no alerta aberto e fica com a data dele (inclusive para o SMS).
+    if (!atual && alerta.tipo === 'seca') {
+      atual = await buscarSecaAberta(colecao, property._id);
+      if (atual) alerta.previstoPara = atual.previstoPara;
+    }
 
     if (!atual) {
       const salvo = await salvarNovoAlerta(colecao, alerta);
@@ -131,8 +158,13 @@ export async function gerarAlertas(database, property, {
 
     const gravidadeNova = GRAVIDADE[alerta.nivel] ?? 0;
     const gravidadeAtual = GRAVIDADE[atual.nivel] ?? 0;
-    // Priorizar o mais grave: uma previsão mais branda não rebaixa o alerta.
-    if (gravidadeNova < gravidadeAtual) continue;
+    // Priorizar o mais grave: uma previsão mais branda não rebaixa o alerta,
+    // mas registra que o risco continua (só atualizadoEm). Assim a seca segue
+    // em "próximos" na rota de alertas e é achada como seca aberta (#75).
+    if (gravidadeNova < gravidadeAtual) {
+      await colecao.updateOne({ _id: atual._id }, { $set: { atualizadoEm: alerta.atualizadoEm } });
+      continue;
+    }
 
     const subiu = gravidadeNova > gravidadeAtual;
     const campos = {
