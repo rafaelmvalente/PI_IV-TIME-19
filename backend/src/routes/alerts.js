@@ -72,6 +72,23 @@ router.get('/', async (req, res) => {
   return res.json(alerts.map(serializeAlert));
 });
 
+// Um alerta só: o app usa quando o produtor toca na notificação push.
+router.get('/:id', async (req, res) => {
+  if (!ObjectId.isValid(req.params.id)) {
+    return res.status(404).json({ error: { code: 'ALERT_NOT_FOUND', message: 'Alerta não encontrado.' } });
+  }
+  const alert = await req.db.collection('alertas').findOne({ _id: new ObjectId(req.params.id) });
+  // Só devolve se o alerta for de uma propriedade do próprio usuário.
+  const property = alert && await req.db.collection('propriedades').findOne({
+    _id: alert.propriedadeId,
+    usuarioId: req.userId,
+  });
+  if (!alert || !property) {
+    return res.status(404).json({ error: { code: 'ALERT_NOT_FOUND', message: 'Alerta não encontrado.' } });
+  }
+  return res.json(serializeAlert(alert));
+});
+
 router.patch('/:id/status', async (req, res) => {
   if (!ObjectId.isValid(req.params.id)) {
     return res.status(404).json({ error: { code: 'ALERT_NOT_FOUND', message: 'Alerta não encontrado.' } });
