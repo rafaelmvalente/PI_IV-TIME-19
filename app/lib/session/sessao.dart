@@ -11,6 +11,8 @@
 //   sessao.preferencias   // texto / voz / SMS
 // Data: 11/11/2026
 // Descrição: Mantém na sessão os dados retornados pela API autenticada.
+// Data: 18/11/2026
+// Descrição: maybeOf, para telas que funcionam com ou sem sessão (ex.: o botão de voz).
 
 import 'package:flutter/widgets.dart';
 
@@ -108,5 +110,11 @@ class SessaoScope extends InheritedNotifier<SessaoController> {
       'SessaoScope não encontrado. Envolva o app com SessaoScope em main.dart.',
     );
     return scope!.notifier!;
+  }
+
+  /// Igual ao [of], mas devolve null se o app não tiver SessaoScope
+  /// (acontece em testes de tela isolada). Também avisa a tela quando a sessão muda.
+  static SessaoController? maybeOf(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<SessaoScope>()?.notifier;
   }
 }
