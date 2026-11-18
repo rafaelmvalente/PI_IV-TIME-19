@@ -3,6 +3,9 @@
 // Descrição: Serviço de consulta e atualização de alertas.
 // Data: 11/11/2026
 // Descrição: Integra alertas ao backend e usa o cache local quando não há rede.
+// Caio Ávila Marchi - 25008101
+// Data: 18/11/2026
+// Descrição: Busca um alerta pelo id, usado ao tocar numa notificação push (issue #31).
 
 import '../models/alerta.dart';
 import 'api_client.dart';
@@ -102,6 +105,21 @@ class AlertaService {
           code: 'ALERT_STATUS_OFFLINE',
           message: 'Conecte-se à internet para atualizar o status do alerta.',
         );
+      }
+      rethrow;
+    }
+  }
+
+  // Busca um alerta pelo id (ao tocar numa notificação push). Sem internet,
+  // procura no cache do celular.
+  Future<Alerta> buscarPorId(String alertaId) async {
+    try {
+      final json = await _api.get('/alerts/$alertaId') as Map<String, dynamic>;
+      return Alerta.fromJson(json);
+    } on ApiException catch (error) {
+      if (error.statusCode != 0) rethrow;
+      for (final alerta in await _local.lerAlertas()) {
+        if (alerta.id == alertaId) return alerta;
       }
       rethrow;
     }
