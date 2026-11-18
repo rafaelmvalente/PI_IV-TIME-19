@@ -34,6 +34,11 @@ export const env = {
     // Número do Twilio (+15551234567) ou um Messaging Service SID (MG...).
     from: process.env.TWILIO_FROM,
   },
+  // Push dos alertas (issue #72). Chave de serviço do Firebase em Base64.
+  // Sem ela, o envio de push fica desligado e o resto do backend funciona normal.
+  firebase: {
+    serviceAccountBase64: process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
+  },
   // Coleta e análise automática (issue #8). 0 desliga o agendamento.
   coletaIntervaloMinutos: Number(process.env.COLETA_INTERVALO_MINUTOS ?? 180),
   // Servidor Java de validação de telefone (issue #73). Sem o classpath, fica desligado.

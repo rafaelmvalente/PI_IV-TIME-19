@@ -8,13 +8,11 @@
 //   avisar o produtor uma vez só (campo notificadoEm).
 // - Usa o histórico de chuva (leituras_clima) na seca prolongada (#11).
 // - Manda SMS dos alertas de nível alto para quem escolheu SMS (#16, #18).
+// - Manda push dos alertas novos ou que subiram de nível (#72).
 
 import { generateRiskAlerts } from './risk.js';
 
 const TRES_HORAS = 3 * 60 * 60_000;
-// Seca que continua (mesmo alternando entre seca prolongada e seca da semana)
-// atualiza o alerta aberto destes últimos dias em vez de criar outro (#75).
-const JANELA_DA_SECA = 7 * 24 * 60 * 60_000;
 const GRAVIDADE = { medio: 1, alto: 2 };
 const FUSO_DO_PRODUTOR = 'America/Sao_Paulo';
 
@@ -42,6 +40,12 @@ async function historicoDoProvedor(database, property) {
 async function notificarPorSms(database, property, alertas) {
   const { notifyCriticalAlerts } = await import('./notifications.js');
   return notifyCriticalAlerts(database, property, alertas);
+}
+
+// Idem para o push (Firebase): o push.js só é carregado quando há o que enviar.
+async function enviarPushDosAlertas(database, property, alertas) {
+  const { notifyAlertsByPush } = await import('./push.js');
+  return notifyAlertsByPush(database, property, alertas);
 }
 
 async function buscarPrevisao(database, property, obterPrevisao) {
@@ -79,24 +83,6 @@ async function buscarRegraDaCultura(database, property) {
   return regra;
 }
 
-// Alerta de seca ainda aberto (não resolvido), o mais recente. Conta como aberto
-// se for previsto para os últimos 7 dias ou depois, OU se foi gerado de novo
-// nesse período (atualizadoEm): a data da seca prolongada fica fixa no dia em
-// que a sequência passou do limite e pode ter mais de 7 dias enquanto a seca dura.
-// O filtro de datas fica no JavaScript porque o banco falso dos testes não tem $or.
-async function buscarSecaAberta(colecao, propertyId) {
-  const limite = new Date(inicioDoDia().getTime() - JANELA_DA_SECA);
-  const secas = await colecao
-    .find({
-      propriedadeId: propertyId,
-      tipo: 'seca',
-      status: { $in: ['emAndamento', 'acaoRealizada'] },
-    })
-    .sort({ previstoPara: -1 })
-    .toArray();
-  return secas.find((seca) => seca.previstoPara >= limite || seca.atualizadoEm >= limite) ?? null;
-}
-
 // Salva um alerta que ainda não existe. Devolve o alerta salvo, ou null se
 // outra execução criou o mesmo alerta ao mesmo tempo (índice único do banco).
 async function salvarNovoAlerta(colecao, alerta) {
@@ -118,6 +104,7 @@ export async function gerarAlertas(database, property, {
   obterPrevisao = previsaoDoProvedor,
   obterHistorico = historicoDoProvedor,
   notificar = notificarPorSms,
+  enviarPush = enviarPushDosAlertas,
 } = {}) {
   const forecast = await buscarPrevisao(database, property, obterPrevisao);
   const regra = await buscarRegraDaCultura(database, property);
@@ -142,13 +129,7 @@ export async function gerarAlertas(database, property, {
   const elevados = [];
 
   for (const alerta of gerados) {
-    let atual = existentes.get(chave(alerta));
-    // A seca pode mudar de data ao alternar entre as duas medidas (#75):
-    // continua no alerta aberto e fica com a data dele (inclusive para o SMS).
-    if (!atual && alerta.tipo === 'seca') {
-      atual = await buscarSecaAberta(colecao, property._id);
-      if (atual) alerta.previstoPara = atual.previstoPara;
-    }
+    const atual = existentes.get(chave(alerta));
 
     if (!atual) {
       const salvo = await salvarNovoAlerta(colecao, alerta);
@@ -158,13 +139,8 @@ export async function gerarAlertas(database, property, {
 
     const gravidadeNova = GRAVIDADE[alerta.nivel] ?? 0;
     const gravidadeAtual = GRAVIDADE[atual.nivel] ?? 0;
-    // Priorizar o mais grave: uma previsão mais branda não rebaixa o alerta,
-    // mas registra que o risco continua (só atualizadoEm). Assim a seca segue
-    // em "próximos" na rota de alertas e é achada como seca aberta (#75).
-    if (gravidadeNova < gravidadeAtual) {
-      await colecao.updateOne({ _id: atual._id }, { $set: { atualizadoEm: alerta.atualizadoEm } });
-      continue;
-    }
+    // Priorizar o mais grave: uma previsão mais branda não rebaixa o alerta.
+    if (gravidadeNova < gravidadeAtual) continue;
 
     const subiu = gravidadeNova > gravidadeAtual;
     const campos = {
@@ -186,6 +162,17 @@ export async function gerarAlertas(database, property, {
     await notificar(database, property, gerados.filter((alerta) => alerta.nivel === 'alto'));
   } catch (erro) {
     console.error(`Falha ao notificar os alertas da propriedade ${property._id}:`, erro);
+  }
+
+  // Push só dos alertas novos ou que subiram de nível: o produtor é avisado uma vez só.
+  // Falha no envio também não impede a resposta com os alertas.
+  const paraAvisar = [...novos, ...elevados];
+  if (paraAvisar.length) {
+    try {
+      await enviarPush(database, property, paraAvisar);
+    } catch (erro) {
+      console.error(`Falha ao enviar push da propriedade ${property._id}:`, erro);
+    }
   }
 
   const alertas = await colecao
