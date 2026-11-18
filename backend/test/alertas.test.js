@@ -226,3 +226,103 @@ test('o alerta de hoje (12:00 UTC) continua depois do início do dia, mesmo à t
   assert.ok(alertaDeHoje >= inicioDoDia(tarde));
   assert.ok(!(alertaDeHoje >= tarde)); // o filtro antigo (>= agora) perdia o alerta
 });
+
+// --- Seca: um único alerta enquanto ela continua (#75) ---
+
+const DIA_MS = 24 * 60 * 60_000;
+
+// Regra só com seca: prolongada a partir de 3 dias sem chuva (alto com 5) e
+// seca da semana com 20 mm ou menos (alto com 5 mm ou menos).
+const regraDeSeca = {
+  cultura: 'milho',
+  estagio: 'crescimento',
+  chuva_min_mm_semana: { medio: 20, alto: 5 },
+  seca_dias_sem_chuva: { medio: 3, alto: 5 },
+};
+
+// Dia de Brasília daqui a n dias (n negativo = passado), no formato da previsão.
+function dia(n) {
+  return new Date(inicioDoDia().getTime() + n * DIA_MS).toISOString().slice(0, 10);
+}
+
+// Previsão a partir de hoje com a chuva (mm) de cada dia.
+function previsaoDeChuva(chuvas) {
+  return async () => ({
+    daily: chuvas.map((precipitation, i) => ({ date: dia(i), maxima: 30, minima: 18, precipitation })),
+  });
+}
+
+// 4 dias secos e depois chuva: só a seca prolongada (médio, gravada em dia(2)).
+const secaProlongadaMedia = previsaoDeChuva([0, 0, 0, 0, 10, 10, 10]);
+// 7 dias secos: seca prolongada alta (gravada em dia(2)).
+const secaProlongadaAlta = previsaoDeChuva([0, 0, 0, 0, 0, 0, 0]);
+// Chuva de 3 e 4 mm quebra a sequência: só a seca da semana (10 mm, médio, em dia(0)).
+const secaDaSemanaMedia = previsaoDeChuva([0, 0, 3, 0, 0, 3, 4]);
+
+function prepararBancoDeSeca() {
+  const banco = criarBancoFalso();
+  banco.collection('risco_cultura').docs.push({ ...regraDeSeca });
+  return banco;
+}
+
+async function gerarSeca(banco, obterPrevisao) {
+  banco.collection('climaCache').docs.length = 0; // previsão nova a cada rodada
+  return gerarAlertas(banco, propriedade, { ...semRede, obterPrevisao });
+}
+
+function secasSalvas(banco) {
+  return banco.collection('alertas').docs.filter((alerta) => alerta.tipo === 'seca');
+}
+
+test('seca prolongada que vira seca da semana continua sendo um único alerta', async () => {
+  const banco = prepararBancoDeSeca();
+  await gerarSeca(banco, secaProlongadaMedia);
+
+  const { novos } = await gerarSeca(banco, secaDaSemanaMedia);
+
+  const secas = secasSalvas(banco);
+  assert.equal(secas.length, 1);
+  assert.equal(novos.length, 0);
+  // Fica com a data do alerta que já existia.
+  assert.equal(secas[0].previstoPara.toISOString(), `${dia(2)}T12:00:00.000Z`);
+  assert.match(secas[0].descricao, /mm de chuva/);
+});
+
+test('seca prolongada com data de 10 dias atrás, mas gerada há pouco, também é atualizada', async () => {
+  const banco = prepararBancoDeSeca();
+  // A sequência passou do limite há 10 dias e a seca continuou sendo gerada.
+  banco.collection('alertas').docs.push({
+    _id: 'seca-antiga',
+    propriedadeId: propriedade._id,
+    tipo: 'seca',
+    nivel: 'medio',
+    previstoPara: new Date(`${dia(-10)}T12:00:00.000Z`),
+    descricao: 'São 12 dias seguidos sem chuva relevante, contando a previsão.',
+    status: 'emAndamento',
+    atualizadoEm: new Date(),
+    notificadoEm: null,
+  });
+
+  const { novos } = await gerarSeca(banco, secaDaSemanaMedia);
+
+  const secas = secasSalvas(banco);
+  assert.equal(secas.length, 1);
+  assert.equal(novos.length, 0);
+  assert.equal(secas[0]._id, 'seca-antiga');
+  assert.match(secas[0].descricao, /mm de chuva/);
+});
+
+test('seca prolongada alta seguida de seca da semana média: um alerta, continua alto', async () => {
+  const banco = prepararBancoDeSeca();
+  await gerarSeca(banco, secaProlongadaAlta);
+  const antes = new Date(Date.now() - 2 * DIA_MS);
+  secasSalvas(banco)[0].atualizadoEm = antes; // como se tivesse sido gerado há 2 dias
+
+  await gerarSeca(banco, secaDaSemanaMedia);
+
+  const secas = secasSalvas(banco);
+  assert.equal(secas.length, 1);
+  assert.equal(secas[0].nivel, 'alto');
+  assert.match(secas[0].descricao, /dias seguidos sem chuva/); // descrição não muda
+  assert.ok(secas[0].atualizadoEm > antes); // mas registra que a seca continua
+});
