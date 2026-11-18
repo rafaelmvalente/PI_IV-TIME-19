@@ -5,11 +5,17 @@
 // marca o status do alerta (Em andamento / Ação realizada / Resolvido).
 // Data: 11/11/2026
 // Descrição: Envia a atualização de status do alerta ao backend.
+// Caio Ávila Marchi - 25008101
+// Data: 18/11/2026
+// Descrição: Botão "Ouvir alerta", que lê o alerta e a recomendação em voz alta
+// (issue #17). Só aparece quando o produtor ativou a preferência de voz.
 
 import 'package:flutter/material.dart';
 
 import '../models/alerta.dart';
 import '../services/alerta_service.dart';
+import '../services/voz_service.dart';
+import '../session/sessao.dart';
 import '../theme/app_colors.dart';
 import '../widgets/alerta_visual.dart';
 import 'recomendacoes_screen.dart';
@@ -19,6 +25,7 @@ class DetalheAlertaScreen extends StatefulWidget {
     super.key,
     required this.alerta,
     this.atualizarStatus,
+    this.voz,
   });
 
   final Alerta alerta;
@@ -26,6 +33,9 @@ class DetalheAlertaScreen extends StatefulWidget {
   // Salva o novo status e devolve o alerta atualizado. Se não for informado,
   // usa o AlertaService (hoje com alertas de exemplo, até o backend: P010).
   final Future<Alerta> Function(StatusAlerta status)? atualizarStatus;
+
+  // Quem lê o alerta em voz alta. Se não for informado, usa o VozService de verdade.
+  final VozService? voz;
 
   @override
   State<DetalheAlertaScreen> createState() => _DetalheAlertaScreenState();
@@ -35,6 +45,39 @@ class _DetalheAlertaScreenState extends State<DetalheAlertaScreen> {
   // Cópia local do alerta: quando o status muda, a tela troca este valor e
   // se redesenha sem precisar ser aberta de novo.
   late Alerta _alerta = widget.alerta;
+
+  // O VozService só é criado na primeira vez que alguém aperta "Ouvir alerta".
+  VozService? _voz;
+  bool _falando = false;
+
+  Future<void> _alternarVoz() async {
+    final voz = _voz ??= widget.voz ?? VozService();
+    if (_falando) {
+      await voz.parar();
+      if (mounted) setState(() => _falando = false);
+      return;
+    }
+
+    setState(() => _falando = true);
+    try {
+      await voz.lerAlerta(_alerta);
+    } on VozIndisponivelException catch (erro) {
+      if (mounted) _mostrarMensagem(erro.mensagem);
+    } catch (_) {
+      if (mounted) {
+        _mostrarMensagem('Não foi possível ler o alerta em voz alta agora.');
+      }
+    } finally {
+      if (mounted) setState(() => _falando = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    // Se o produtor sair da tela, a leitura para.
+    _voz?.parar();
+    super.dispose();
+  }
 
   Future<void> _mudarStatus(StatusAlerta status) async {
     final salvar =
@@ -100,6 +143,12 @@ class _DetalheAlertaScreenState extends State<DetalheAlertaScreen> {
                           _buildCartaoRisco(),
                           const SizedBox(height: 16),
                           _buildRecomendacao(),
+                          // O botão só aparece para quem escolheu receber em voz.
+                          if (SessaoScope.maybeOf(context)?.preferencias.voz ??
+                              false) ...[
+                            const SizedBox(height: 16),
+                            _buildBotaoOuvir(),
+                          ],
                         ],
                       ),
                     ),
@@ -140,6 +189,30 @@ class _DetalheAlertaScreenState extends State<DetalheAlertaScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBotaoOuvir() {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.verde,
+          side: const BorderSide(color: AppColors.verde),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: _alternarVoz,
+        icon: Icon(
+          _falando ? Icons.stop_circle_outlined : Icons.volume_up_outlined,
+        ),
+        label: Text(
+          _falando ? 'Parar áudio' : 'Ouvir alerta',
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
         ),
       ),
     );
