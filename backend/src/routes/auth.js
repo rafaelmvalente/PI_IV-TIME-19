@@ -143,6 +143,27 @@ router.patch('/me/telefone', authenticate, async (req, res) => {
   return res.json(publicUser(user));
 });
 
+// Guarda o token do aparelho (Firebase) para o push dos alertas. O produtor pode
+// ter mais de um aparelho, então os tokens ficam numa lista (pushTokens).
+router.patch('/me/push-token', authenticate, async (req, res) => {
+  const { token } = z.object({ token: z.string().trim().min(20).max(4096) }).parse(req.body);
+  const users = req.db.collection('usuarios');
+
+  // Se o aparelho estava ligado a outra conta (celular compartilhado), tira de lá.
+  await users.updateMany(
+    { _id: { $ne: req.userId }, pushTokens: token },
+    { $pull: { pushTokens: token } },
+  );
+  const result = await users.updateOne(
+    { _id: req.userId },
+    { $addToSet: { pushTokens: token }, $set: { atualizadoEm: new Date() } },
+  );
+  if (!result.matchedCount) {
+    return res.status(404).json({ error: { code: 'USER_NOT_FOUND', message: 'Usuário não encontrado.' } });
+  }
+  return res.status(204).end();
+});
+
 router.post('/forgot-password', async (req, res) => {
   if (!smtpConfigured()) {
     return res.status(503).json({
