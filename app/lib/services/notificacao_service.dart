@@ -46,12 +46,14 @@ class NotificacaoService {
   NotificacaoService({
     required this._provedor,
     required this._enviarToken,
+    required this._removerToken,
     required this._abrirAlerta,
     required this._mostrarAviso,
   });
 
   final ProvedorDePush _provedor;
   final Future<void> Function(String token) _enviarToken;
+  final Future<void> Function(String token) _removerToken;
   final void Function(String alertaId) _abrirAlerta;
   final void Function(MensagemDePush mensagem) _mostrarAviso;
 
@@ -109,6 +111,19 @@ class NotificacaoService {
   /// Chamar quando o produtor sair da conta.
   void aoSair() {
     _logado = false;
+  }
+
+  /// Chamar antes de sair, enquanto ainda está logado na API: o backend
+  /// esquece este aparelho e ele para de receber os alertas desta conta.
+  Future<void> esquecerAparelho() async {
+    await iniciar();
+    if (!_ativo) return;
+    try {
+      final token = await _provedor.obterToken();
+      if (token != null && token.isNotEmpty) await _removerToken(token);
+    } catch (_) {
+      // Sem internet: sair continua funcionando, só o token fica no backend.
+    }
   }
 
   Future<void> parar() async {

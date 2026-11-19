@@ -173,7 +173,7 @@ test('alerta já resolvido pelo produtor não gera notificação', async () => {
   assert.equal(chamadas, 0);
 });
 
-test('falha no envio fica registrada e a próxima atualização tenta de novo', async () => {
+test('falha no envio fica registrada e o alerta pode ser enviado de novo', async () => {
   const db = fakeDb({ usuario: user(), alerts: [alert()] });
 
   const falha = await notifyAlertsByPush(db, property, [alert()], {

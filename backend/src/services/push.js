@@ -138,7 +138,9 @@ export async function notifyAlertsByPush(database, property, alertas, deps = {})
         );
         summary.enviados += 1;
       } else {
-        // Nenhum aparelho recebeu: notificadoEm continua nulo e a próxima atualização tenta de novo.
+        // Nenhum aparelho recebeu: notificadoEm continua nulo. Esta função aceitaria
+        // uma nova tentativa, mas o gerarAlertas só manda alertas novos ou que subiram
+        // de nível, então o mesmo alerta não é reenviado sozinho.
         await alerts.updateOne(
           { _id: claimed._id },
           { $set: { 'notificacoes.push': { status: 'falhou', em: new Date(), erro: 'Nenhum aparelho recebeu.' } } },

@@ -122,7 +122,16 @@ class AuthService {
     await _api.patch('/auth/me/preferences', body: preferencias);
   }
 
+  /// Roda antes de apagar o login, enquanto a API ainda aceita a conta.
+  /// O main.dart usa para tirar o token de push do aparelho.
+  static Future<void> Function()? antesDeSair;
+
   Future<void> sair() async {
+    try {
+      await antesDeSair?.call();
+    } catch (_) {
+      // Nada aqui pode impedir o produtor de sair.
+    }
     await _api.removerToken();
     await _local.apagarConta();
   }

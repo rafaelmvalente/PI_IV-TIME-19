@@ -46,6 +46,8 @@ Future<void> main() async {
     provedor: ProvedorFirebase(),
     enviarToken: (token) =>
         ApiClient().patch('/auth/me/push-token', body: {'token': token}),
+    removerToken: (token) =>
+        ApiClient().delete('/auth/me/push-token', body: {'token': token}),
     abrirAlerta: abrirAlerta,
     // Com o app aberto o Android não mostra a notificação sozinho: mostramos
     // um aviso na tela, com o botão "Ver" para abrir o alerta.
@@ -87,6 +89,9 @@ Future<void> main() async {
     }
     estavaLogado = logado;
   });
+
+  // Ao sair da conta, o aparelho para de receber os alertas dela.
+  AuthService.antesDeSair = notificacoes.esquecerAparelho;
 
   // Prepara o Firebase em segundo plano. Sem configuração, o app funciona igual,
   // só sem push.

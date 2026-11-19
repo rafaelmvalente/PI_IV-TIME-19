@@ -9,10 +9,8 @@ import 'package:app/services/notificacao_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _ProvedorFalso implements ProvedorDePush {
-  _ProvedorFalso({
-    this.configurado = true,
-    this.permissao = true,
-  }) : token = 'token-do-aparelho';
+  _ProvedorFalso({this.configurado = true, this.permissao = true})
+    : token = 'token-do-aparelho';
 
   final bool configurado;
   final bool permissao;
@@ -58,6 +56,10 @@ class _Cenario {
         if (falhaAoEnviar) throw StateError('sem internet');
         tokensEnviados.add(token);
       },
+      removerToken: (token) async {
+        if (falhaAoEnviar) throw StateError('sem internet');
+        tokensRemovidos.add(token);
+      },
       abrirAlerta: alertasAbertos.add,
       mostrarAviso: avisos.add,
     );
@@ -66,6 +68,7 @@ class _Cenario {
   final _ProvedorFalso provedor;
   late final NotificacaoService servico;
   final tokensEnviados = <String>[];
+  final tokensRemovidos = <String>[];
   final alertasAbertos = <String>[];
   final avisos = <MensagemDePush>[];
 }
@@ -101,6 +104,30 @@ void main() {
     await c.servico.aoEntrar();
 
     expect(c.tokensEnviados, isEmpty);
+  });
+
+  test('ao sair, pede ao backend para esquecer o aparelho', () async {
+    final c = _Cenario(_ProvedorFalso());
+
+    await c.servico.esquecerAparelho();
+
+    expect(c.tokensRemovidos, ['token-do-aparelho']);
+  });
+
+  test('sem Firebase, sair não chama o backend', () async {
+    final c = _Cenario(_ProvedorFalso(configurado: false));
+
+    await c.servico.esquecerAparelho();
+
+    expect(c.tokensRemovidos, isEmpty);
+  });
+
+  test('sem internet ao sair, não dá erro', () async {
+    final c = _Cenario(_ProvedorFalso(), falhaAoEnviar: true);
+
+    await c.servico.esquecerAparelho();
+
+    expect(c.tokensRemovidos, isEmpty);
   });
 
   test('falha ao enviar o token não derruba o app', () async {
