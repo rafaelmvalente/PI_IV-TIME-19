@@ -5,6 +5,7 @@
 // mas ele fica atrás da interface MotorDeVoz, para os testes usarem uma voz
 // falsa em vez do celular de verdade.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 import '../models/alerta.dart';
@@ -43,11 +44,28 @@ class MotorFlutterTts implements MotorDeVoz {
       );
     }
     await _tts.setLanguage(idioma);
+    final voz = escolherVoz(await _vozesDoAparelho(), idioma);
+    if (voz != null) await _tts.setVoice(voz);
     // Um pouco mais devagar que o normal, para ficar fácil de entender.
-    await _tts.setSpeechRate(0.45);
+    // No navegador 1.0 é a velocidade normal; no celular, 0.5.
+    await _tts.setSpeechRate(kIsWeb ? 0.9 : 0.45);
     // Faz o speak() só terminar quando a fala acabar: é assim que o botão
     // sabe a hora de voltar a mostrar "Ouvir alerta".
     await _tts.awaitSpeakCompletion(true);
+  }
+
+  // Sem a lista de vozes (ex.: o navegador ainda não carregou), fica a voz
+  // padrão do idioma.
+  Future<List<Map<String, String>>> _vozesDoAparelho() async {
+    try {
+      final vozes = await _tts.getVoices as List? ?? const [];
+      return [
+        for (final voz in vozes.whereType<Map>())
+          {for (final e in voz.entries) '${e.key}': '${e.value}'},
+      ];
+    } catch (_) {
+      return const [];
+    }
   }
 
   @override
@@ -59,6 +77,35 @@ class MotorFlutterTts implements MotorDeVoz {
   Future<void> parar() async {
     await _tts.stop();
   }
+}
+
+/// Escolhe a voz do idioma que soa mais natural. As vozes neurais ("Natural" e
+/// "Online" no Edge, "Google" no Chrome, "network" no Android) são bem menos
+/// robóticas que a voz padrão do sistema. Devolve null se não houver voz do idioma.
+Map<String, String>? escolherVoz(
+  List<Map<String, String>> vozes,
+  String idioma,
+) {
+  int nota(Map<String, String> voz) {
+    final nome = (voz['name'] ?? '').toLowerCase();
+    if (nome.contains('natural')) return 4;
+    if (nome.contains('online')) return 3;
+    if (nome.contains('google')) return 2;
+    if (nome.contains('network')) return 1;
+    return 0;
+  }
+
+  final doIdioma = vozes
+      .where(
+        (voz) =>
+            (voz['locale'] ?? '').replaceAll('_', '-').toLowerCase() ==
+            idioma.toLowerCase(),
+      )
+      .toList();
+  if (doIdioma.isEmpty) return null;
+  return doIdioma.reduce(
+    (melhor, voz) => nota(voz) > nota(melhor) ? voz : melhor,
+  );
 }
 
 class VozService {

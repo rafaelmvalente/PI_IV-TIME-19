@@ -1,3 +1,7 @@
+// Caio Ávila Marchi - 25008101
+// Data: 28/10/2026
+// Descrição: Testes da tela de recuperação de senha.
+
 import 'package:app/screens/recuperar_senha_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
