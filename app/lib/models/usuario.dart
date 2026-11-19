@@ -28,7 +28,7 @@ class Usuario {
       telefone: json['telefone'] as String?,
       preferencias: PreferenciasAlerta.fromJson(
         json['preferencias'] as Map<String, dynamic>? ??
-            const <String, dynamic>{'texto': true, 'voz': false, 'sms': false},
+            const <String, dynamic>{'texto': true, 'voz': false},
       ),
     );
   }

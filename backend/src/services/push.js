@@ -1,7 +1,7 @@
 // Nome: Caio Ávila Marchi - RA: 25008101
 // Data: 18/11/2026
 // Descrição: Envia push (Firebase Cloud Messaging) dos alertas novos ou que
-// subiram de nível (issue #72). Segue o modelo do SMS (notifications.js):
+// subiram de nível (issue #72):
 // - respeita a preferência do produtor (push é o canal de "texto" e "voz");
 // - marca cada alerta de forma atômica antes de enviar, para não avisar duas
 //   vezes se o agendamento e o app atualizarem os alertas ao mesmo tempo;
@@ -10,7 +10,7 @@
 
 import { env } from '../config/env.js';
 
-const DEFAULT_PREFERENCES = { texto: true, voz: false, sms: false };
+const DEFAULT_PREFERENCES = { texto: true, voz: false };
 const typeNames = { geada: 'geada', seca: 'seca prolongada', chuvaForte: 'chuva forte' };
 const levelNames = { medio: 'médio', alto: 'alto' };
 // Códigos do Firebase para um token que não vale mais (app desinstalado, token trocado).
@@ -94,7 +94,7 @@ export async function notifyAlertsByPush(database, property, alertas, deps = {})
   );
   const preferences = { ...DEFAULT_PREFERENCES, ...user?.preferencias };
 
-  // Push é o canal do texto e da voz. Quem escolheu só SMS não recebe push.
+  // Push é o canal do texto e da voz. Quem desligou os dois não recebe push.
   if (!preferences.texto && !preferences.voz) return { ...summary, ignorado: 'PUSH_DESATIVADO' };
   const tokens = user?.pushTokens ?? [];
   if (!tokens.length) return { ...summary, ignorado: 'SEM_TOKEN' };

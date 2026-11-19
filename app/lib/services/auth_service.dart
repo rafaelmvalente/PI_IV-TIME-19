@@ -104,14 +104,6 @@ class AuthService {
     );
   }
 
-  // Telefone que recebe o SMS dos alertas críticos. Devolve o número salvo.
-  Future<String> atualizarTelefone(String telefone) async {
-    final json =
-        await _api.patch('/auth/me/telefone', body: {'telefone': telefone})
-            as Map<String, dynamic>;
-    return Usuario.fromJson(json).telefone!;
-  }
-
   Future<void> recuperarSenha(String login) async {
     await _api.post('/auth/forgot-password', body: {'login': login.trim()});
   }

@@ -38,19 +38,18 @@ void main() {
       final sessao = SessaoController();
 
       sessao.atualizarPreferencias(
-        sessao.preferencias.copyWith(voz: true, sms: true),
+        sessao.preferencias.copyWith(voz: true),
       );
 
       expect(sessao.preferencias.texto, isTrue);
       expect(sessao.preferencias.voz, isTrue);
-      expect(sessao.preferencias.sms, isTrue);
     });
 
     test('sair limpa login, propriedade e preferências', () {
       final sessao = SessaoController();
       sessao.entrar(login: 'antonio@exemplo.com', propriedade: _propriedade);
       sessao.atualizarPreferencias(
-        const PreferenciasAlerta(texto: true, voz: true, sms: false),
+        const PreferenciasAlerta(texto: true, voz: true),
       );
 
       sessao.sair();

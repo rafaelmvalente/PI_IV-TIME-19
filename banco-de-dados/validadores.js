@@ -32,7 +32,7 @@ aplicarValidador("usuarios", {
     email: { bsonType: "string", pattern: "^.+@.+\\..+$" },
     telefone: { bsonType: "string" },
     senhaHash: { bsonType: "string" },
-    preferencias: { bsonType: "object", required: ["texto", "voz", "sms"] },
+    preferencias: { bsonType: "object", required: ["texto", "voz"] },
     criadoEm: { bsonType: "date" },
   },
 });

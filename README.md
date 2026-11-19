@@ -10,7 +10,7 @@ Em vez de apenas informar a temperatura, o sistema avisa o risco real e o que fa
 
 > Risco de geada (alto) — amanhã, 06:00. Cubra as plantas mais sensíveis com lonas ou plástico agrícola.
 
-Os alertas chegam por notificação, em texto ou voz e, quando a propriedade está sem internet estável, os alertas críticos chegam por SMS. Cada alerta fica registrado em um histórico, com o status do que foi feito.
+Os alertas chegam por notificação, em texto ou voz. Sem internet, o app continua mostrando os últimos alertas salvos e os novos chegam por notificação quando a internet voltar. Cada alerta fica registrado em um histórico, com o status do que foi feito.
 
 ## Equipe
 
@@ -46,7 +46,7 @@ Os alertas chegam por notificação, em texto ou voz e, quando a propriedade est
 
 - Notificação push no aplicativo
 - Texto e voz: o produtor escolhe receber o alerta escrito e/ou em áudio
-- Modo offline / SMS: sem internet estável, os alertas críticos chegam por SMS
+- Modo offline: sem internet, o app mostra os últimos alertas salvos e os novos chegam por notificação quando a internet voltar
 
 ### Histórico e acompanhamento
 
@@ -77,7 +77,7 @@ A tela inicial apresenta:
 - Servidor: Java 21 puro, com threads e sockets (validação de telefone, em `servidor-java/`)
 - Banco de dados: MongoDB (usuários, propriedades, alertas, tabela de risco por cultura, cache do clima e leituras diárias de chuva)
 - Testes automatizados: JUnit 5, Mockito
-- Integrações: Open-Meteo (clima), Firebase Cloud Messaging (push), Twilio (SMS) e SMTP (e-mail de recuperação de senha)
+- Integrações: Open-Meteo (clima), Firebase Cloud Messaging (push) e SMTP (e-mail de recuperação de senha)
 - Controle de versão: Git, GitHub e GitHub Projects
 - Hospedagem: Render (backend e servidor Java, com Docker) e MongoDB Atlas (banco)
 
@@ -106,7 +106,7 @@ flutter run -d chrome --dart-define=API_URL=https://pi-iv-time-19.onrender.com/a
 Como funciona a publicação:
 
 - O `Dockerfile` (na raiz) monta o Node e o Java no mesmo serviço: compila o `servidor-java/`, sobe o servidor Java na porta 3001 (interna) e depois o backend na porta pública
-- As senhas ficam nas variáveis de ambiente do Render, fora do Git: `MONGODB_URI`, `MONGODB_DATABASE`, `JWT_SECRET`, `CORS_ORIGIN` e `COLETA_INTERVALO_MINUTOS`. Os recursos opcionais só funcionam com as suas variáveis: recuperação de senha (`SMTP_*` e `APP_RESET_PASSWORD_URL`), push (`FIREBASE_SERVICE_ACCOUNT_BASE64`) e SMS (`TWILIO_*`)
+- As senhas ficam nas variáveis de ambiente do Render, fora do Git: `MONGODB_URI`, `MONGODB_DATABASE`, `JWT_SECRET`, `CORS_ORIGIN` e `COLETA_INTERVALO_MINUTOS`. Os recursos opcionais só funcionam com as suas variáveis: recuperação de senha (`SMTP_*` e `APP_RESET_PASSWORD_URL`) e push (`FIREBASE_SERVICE_ACCOUNT_BASE64`)
 - O plano gratuito do Render desliga o serviço depois de 15 minutos sem acesso. Uma tarefa no cron-job.org acessa o `/api/v1/health` a cada 10 minutos para mantê-lo ligado e a coleta agendada rodando
 - **O Render não atualiza sozinho:** depois de um merge no `main` que mexa no backend ou no servidor Java, é preciso entrar no Render e clicar em **Manual Deploy → Deploy latest commit**
 
@@ -123,7 +123,7 @@ npm install
 npm run dev             # API em http://localhost:3000/api/v1
 ```
 
-Sem as variáveis de SMTP, Firebase, Twilio ou do servidor Java, o backend sobe normalmente e só o recurso correspondente fica desligado. A recuperação de senha responde 503 até o SMTP ser configurado (com Gmail: `smtp.gmail.com`, porta 587 e uma senha de app).
+Sem as variáveis de SMTP, Firebase ou do servidor Java, o backend sobe normalmente e só o recurso correspondente fica desligado. A recuperação de senha responde 503 até o SMTP ser configurado (com Gmail: `smtp.gmail.com`, porta 587 e uma senha de app).
 
 ### Servidor Java (validação de telefone)
 

@@ -7,7 +7,6 @@
 // - Informa quais alertas são novos ou subiram de nível, para o envio de push
 //   avisar o produtor uma vez só (campo notificadoEm).
 // - Usa o histórico de chuva (leituras_clima) na seca prolongada (#11).
-// - Manda SMS dos alertas de nível alto para quem escolheu SMS (#16, #18).
 // - Manda push dos alertas novos ou que subiram de nível (#72).
 
 import { generateRiskAlerts } from './risk.js';
@@ -34,15 +33,10 @@ async function previsaoDoProvedor(latitude, longitude) {
   return getForecast(latitude, longitude);
 }
 
-// Mesmo motivo: readings.js e notifications.js dependem do .env (clima e Twilio).
+// Mesmo motivo: readings.js depende do .env (clima).
 async function historicoDoProvedor(database, property) {
   const { syncReadings } = await import('./readings.js');
   return syncReadings(database, property);
-}
-
-async function notificarPorSms(database, property, alertas) {
-  const { notifyCriticalAlerts } = await import('./notifications.js');
-  return notifyCriticalAlerts(database, property, alertas);
 }
 
 // Idem para o push (Firebase): o push.js só é carregado quando há o que enviar.
@@ -124,7 +118,6 @@ async function salvarNovoAlerta(colecao, alerta) {
 export async function gerarAlertas(database, property, {
   obterPrevisao = previsaoDoProvedor,
   obterHistorico = historicoDoProvedor,
-  notificar = notificarPorSms,
   enviarPush = enviarPushDosAlertas,
 } = {}) {
   const forecast = await buscarPrevisao(database, property, obterPrevisao);
@@ -152,7 +145,7 @@ export async function gerarAlertas(database, property, {
   for (const alerta of gerados) {
     let atual = existentes.get(chave(alerta));
     // A seca pode mudar de data ao alternar entre as duas medidas (#75):
-    // continua no alerta aberto e fica com a data dele (inclusive para o SMS).
+    // continua no alerta aberto e fica com a data dele.
     if (!atual && alerta.tipo === 'seca') {
       atual = await buscarSecaAberta(colecao, property._id);
       if (atual) alerta.previstoPara = atual.previstoPara;
@@ -189,15 +182,8 @@ export async function gerarAlertas(database, property, {
     if (subiu) elevados.push({ ...atual, ...campos });
   }
 
-  // SMS dos alertas críticos. Falha no envio não impede a resposta com os alertas.
-  try {
-    await notificar(database, property, gerados.filter((alerta) => alerta.nivel === 'alto'));
-  } catch (erro) {
-    console.error(`Falha ao notificar os alertas da propriedade ${property._id}:`, erro);
-  }
-
   // Push só dos alertas novos ou que subiram de nível: o produtor é avisado uma vez só.
-  // Falha no envio também não impede a resposta com os alertas.
+  // Falha no envio não impede a resposta com os alertas.
   const paraAvisar = [...novos, ...elevados];
   if (paraAvisar.length) {
     try {

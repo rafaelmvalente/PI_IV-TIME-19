@@ -46,40 +46,8 @@ function previsaoFalsa(minima) {
   return funcao;
 }
 
-// Histórico de chuva e SMS falsos: os testes não usam internet nem Twilio.
-const semRede = { obterHistorico: async () => [], notificar: async () => {} };
-
-test('manda para o SMS só os alertas de nível alto', async () => {
-  const banco = prepararBanco();
-  const enviados = [];
-  await gerarAlertas(banco, propriedade, {
-    obterPrevisao: async () => ({
-      daily: [
-        { date: '2026-11-12', maxima: 25, minima: 1, precipitation: 10 }, // médio
-        { date: '2026-11-13', maxima: 25, minima: -1, precipitation: 10 }, // alto
-      ],
-    }),
-    obterHistorico: async () => [],
-    notificar: async (_banco, _prop, alertas) => enviados.push(...alertas),
-  });
-  assert.deepEqual(enviados.map((a) => a.nivel), ['alto']);
-});
-
-test('falha no SMS não impede a geração dos alertas', async () => {
-  const banco = prepararBanco();
-  const erroOriginal = console.error;
-  console.error = () => {};
-  try {
-    const { alertas } = await gerarAlertas(banco, propriedade, {
-      ...semRede,
-      obterPrevisao: previsaoFalsa(-1),
-      notificar: async () => { throw new Error('Twilio fora do ar'); },
-    });
-    assert.equal(alertas.length, 1);
-  } finally {
-    console.error = erroOriginal;
-  }
-});
+// Histórico de chuva falso e push desligado: os testes não usam internet.
+const semRede = { obterHistorico: async () => [], enviarPush: async () => {} };
 
 test('cria o alerta novo e avisa que ele é novo', async () => {
   const banco = prepararBanco();

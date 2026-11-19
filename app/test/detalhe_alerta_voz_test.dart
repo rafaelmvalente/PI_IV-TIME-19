@@ -51,7 +51,7 @@ Widget _comSessao({required bool voz, required VozService servico}) {
   final sessao = SessaoController()
     ..entrar(
       login: 'antonio@exemplo.com',
-      preferencias: PreferenciasAlerta(texto: true, voz: voz, sms: false),
+      preferencias: PreferenciasAlerta(texto: true, voz: voz),
     );
   return SessaoScope(
     controller: sessao,
