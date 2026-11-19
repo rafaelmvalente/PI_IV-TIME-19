@@ -10,13 +10,19 @@
 
 db = db.getSiblingDB("climalerta"); // "use climalerta" não funciona ao colar o script inteiro
 
+// Aplica a regra ($jsonSchema) em uma coleção.
+// - validationLevel "strict": a regra vale para TODO insert e update.
+// - validationAction "error": o MongoDB RECUSA o documento fora da regra
+//   (com "warn" ele só registraria um aviso no log e gravaria assim mesmo).
 function aplicarValidador(colecao, schema) {
   const validator = { $jsonSchema: schema };
   const existe = db.getCollectionNames().includes(colecao);
   if (existe) {
+    // collMod altera a regra de uma coleção que já existe, sem apagar os dados.
     db.runCommand({ collMod: colecao, validator, validationLevel: "strict", validationAction: "error" });
     print("[atualizado] " + colecao);
   } else {
+    // Coleção nova: cria já com a regra.
     db.createCollection(colecao, { validator, validationLevel: "strict", validationAction: "error" });
     print("[criado]     " + colecao);
   }
@@ -26,12 +32,16 @@ function aplicarValidador(colecao, schema) {
 // por isso nenhum dos dois é obrigatório aqui.
 aplicarValidador("usuarios", {
   bsonType: "object",
+  // Campos que todo usuário precisa ter.
   required: ["nome", "senhaHash", "preferencias", "criadoEm"],
   properties: {
     nome: { bsonType: "string", minLength: 1 },
+    // Formato mínimo de e-mail: algo@algo.algo
     email: { bsonType: "string", pattern: "^.+@.+\\..+$" },
     telefone: { bsonType: "string" },
+    // Só o hash (bcrypt) da senha é guardado, nunca a senha em si.
     senhaHash: { bsonType: "string" },
+    // Como o produtor quer receber os alertas: texto e/ou voz.
     preferencias: { bsonType: "object", required: ["texto", "voz"] },
     criadoEm: { bsonType: "date" },
   },
@@ -40,12 +50,14 @@ aplicarValidador("usuarios", {
 // A localização é guardada como { latitude, longitude }, como o app envia.
 aplicarValidador("propriedades", {
   bsonType: "object",
+  // usuarioId liga a propriedade ao dono (coleção usuarios).
   required: ["usuarioId", "nome", "cultivo", "localizacao", "criadoEm"],
   properties: {
     localizacao: {
       bsonType: "object",
       required: ["latitude", "longitude"],
       properties: {
+        // Limites reais do globo: latitude de -90 a 90 e longitude de -180 a 180.
         latitude: { bsonType: "number", minimum: -90, maximum: 90 },
         longitude: { bsonType: "number", minimum: -180, maximum: 180 },
       },
@@ -58,12 +70,17 @@ aplicarValidador("alertas", {
   bsonType: "object",
   required: ["propriedadeId", "tipo", "nivel", "previstoPara", "descricao", "status", "recomendacao", "criadoEm"],
   properties: {
+    // Propriedade a que o alerta pertence (_id da coleção propriedades).
     propriedadeId: { bsonType: "objectId" },
+    // enum: só aceita um destes valores exatos.
     tipo: { enum: ["geada", "seca", "chuvaForte"] },
     nivel: { enum: ["medio", "alto"] },
+    // Dia previsto para o risco acontecer.
     previstoPara: { bsonType: "date" },
     descricao: { bsonType: "string", minLength: 1 },
+    // O que o produtor fez com o alerta (marcado na tela de detalhe).
     status: { enum: ["emAndamento", "acaoRealizada", "resolvido"] },
+    // Recomendação prática: a ação é obrigatória; detalhe e dicas, não.
     recomendacao: {
       bsonType: "object",
       required: ["acao"],
@@ -83,7 +100,9 @@ aplicarValidador("climaCache", {
   required: ["propriedadeId", "forecast", "atualizadoEm"],
   properties: {
     propriedadeId: { bsonType: "objectId" },
+    // current = clima de agora; daily = previsão dia a dia.
     forecast: { bsonType: "object", required: ["current", "daily"] },
+    // Quando a previsão foi buscada: o backend reaproveita o cache recente.
     atualizadoEm: { bsonType: "date" },
   },
 });

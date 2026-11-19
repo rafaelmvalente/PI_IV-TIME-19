@@ -1,4 +1,4 @@
-// Vinicius Santuci Virgolino - 25000294
+// Nome: Vinicius Santuci Virgolino - RA: 25000294
 // Data: 11/11/2026
 // Descrição: Mapa (via flutter_map) com um pino no ponto escolhido. Mostra
 // o mapa do OpenStreetMap ou a vista de satélite da Esri, onde o produtor
@@ -7,11 +7,15 @@
 // (SelecionarLocalMapaScreen).
 
 import 'package:flutter/material.dart';
+// flutter_map: desenha o mapa a partir de imagens (tiles) baixadas da internet.
 import 'package:flutter_map/flutter_map.dart';
+// latlong2: tipo LatLng (latitude + longitude) usado pelo flutter_map.
 import 'package:latlong2/latlong.dart';
 
 import '../theme/app_colors.dart';
 
+// Widget só de exibição (StatelessWidget): recebe o ponto e o tipo de mapa
+// prontos da tela e devolve o toque pelo onTocar.
 class MapaSelecaoLocal extends StatelessWidget {
   const MapaSelecaoLocal({
     super.key,
@@ -24,13 +28,16 @@ class MapaSelecaoLocal extends StatelessWidget {
   // Centro aproximado do Brasil, com zoom que mostra o país inteiro.
   static const _centroBrasil = LatLng(-15.8, -47.9);
   static const _zoomBrasil = 4.0;
+  // Zoom de quando já existe um ponto: perto o bastante para ver a propriedade.
   static const _zoomPropriedade = 15.0;
 
   // Permite à tela mover o mapa (ex.: ir até a cidade buscada).
   final MapController controller;
   // Onde está o pino. null enquanto o produtor ainda não escolheu.
   final LatLng? ponto;
+  // true = foto de satélite (Esri); false = mapa de ruas (OpenStreetMap).
   final bool satelite;
+  // Chamado com a latitude/longitude do lugar onde o produtor tocou.
   final ValueChanged<LatLng> onTocar;
 
   @override
@@ -38,9 +45,12 @@ class MapaSelecaoLocal extends StatelessWidget {
     return FlutterMap(
       mapController: controller,
       options: MapOptions(
+        // As posições iniciais só valem na primeira vez que o mapa abre;
+        // depois quem move o mapa é o produtor ou o controller.
         // Se já existe um ponto, abre nele de perto; senão, no Brasil todo.
         initialCenter: ponto ?? _centroBrasil,
         initialZoom: ponto == null ? _zoomBrasil : _zoomPropriedade,
+        // Limite de aproximação (nível de rua/casa).
         maxZoom: 19,
         // O flutter_map já converte o ponto tocado na tela em latitude e
         // longitude.
@@ -72,10 +82,13 @@ class MapaSelecaoLocal extends StatelessWidget {
             maxNativeZoom: 18,
           ),
         ] else
+          // Mapa comum de ruas do OpenStreetMap (aqui a ordem é {x}/{y}).
           TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             userAgentPackageName: _identificacaoApp,
           ),
+        // Camada do pino vermelho, desenhada por cima do mapa. Só aparece
+        // depois que existe um ponto escolhido.
         if (ponto != null)
           MarkerLayer(
             markers: [

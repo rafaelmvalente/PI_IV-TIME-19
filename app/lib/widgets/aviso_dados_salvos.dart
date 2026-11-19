@@ -9,16 +9,23 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
 // Monta o texto da faixa: "hoje", "ontem" ou a data, sempre com o horário.
+// Fica fora da classe (função solta) para ser testada sem desenhar a tela.
+// "agora" é opcional: os testes passam uma data fixa; o app usa a data atual.
 String textoDadosSalvos(DateTime? atualizadoEm, {DateTime? agora}) {
+  // Primeira vez sem internet e nada salvo ainda no celular.
   if (atualizadoEm == null) return 'Sem internet · nenhum dado salvo ainda';
 
+  // dateOnly zera as horas: assim comparamos só os dias. Sem isso, 23h de
+  // ontem e 1h de hoje dariam menos de 1 dia de diferença e sairia "hoje".
   final hoje = DateUtils.dateOnly(agora ?? DateTime.now());
   final dia = DateUtils.dateOnly(atualizadoEm);
   final diferenca = hoje.difference(dia).inDays;
 
+  // Completa com zero à esquerda: 9 vira "09" (para mostrar 09:05).
   String doisDigitos(int n) => n.toString().padLeft(2, '0');
   final hora =
       '${doisDigitos(atualizadoEm.hour)}:${doisDigitos(atualizadoEm.minute)}';
+  // 0 dias = hoje, 1 dia = ontem, mais que isso = a data (dia/mês).
   final quando = switch (diferenca) {
     0 => 'de hoje',
     1 => 'de ontem',
@@ -27,6 +34,7 @@ String textoDadosSalvos(DateTime? atualizadoEm, {DateTime? agora}) {
   return 'Sem internet · dados $quando, $hora';
 }
 
+// A faixa amarela em si. O dashboard só a mostra quando está sem internet.
 class AvisoDadosSalvos extends StatelessWidget {
   const AvisoDadosSalvos({super.key, required this.atualizadoEm, this.agora});
 
@@ -38,8 +46,11 @@ class AvisoDadosSalvos extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      // Ocupa toda a largura da tela.
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      // Fundo amarelo claro (25% de opacidade) com borda amarela forte:
+      // chama atenção sem parecer um erro (que seria vermelho).
       decoration: BoxDecoration(
         color: AppColors.amareloSol.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(12),
@@ -47,8 +58,11 @@ class AvisoDadosSalvos extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // Ícone de nuvem cortada: o símbolo comum de "sem conexão".
           const Icon(Icons.cloud_off, size: 20, color: AppColors.textoEscuro),
           const SizedBox(width: 10),
+          // Expanded: o texto quebra a linha em telas estreitas em vez de
+          // passar da borda.
           Expanded(
             child: Text(
               textoDadosSalvos(atualizadoEm, agora: agora),
