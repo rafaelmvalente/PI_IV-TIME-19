@@ -218,5 +218,23 @@ void main() {
       expect(prefs.getString('api_access_token'), isNull);
       expect(await local.lerConta(), isNull);
     });
+
+    test('sair chama antesDeSair ainda com o login salvo', () async {
+      SharedPreferences.setMockInitialValues({'api_access_token': 'abc'});
+      String? tokenNaHora;
+      AuthService.antesDeSair = () async {
+        tokenNaHora = (await SharedPreferences.getInstance()).getString(
+          'api_access_token',
+        );
+        throw StateError('sem internet'); // falhar aqui não impede de sair
+      };
+      addTearDown(() => AuthService.antesDeSair = null);
+
+      await servico((_) async => json({})).sair();
+
+      expect(tokenNaHora, 'abc');
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('api_access_token'), isNull);
+    });
   });
 }

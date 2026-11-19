@@ -140,6 +140,14 @@ router.patch('/me/push-token', authenticate, async (req, res) => {
   return res.status(204).end();
 });
 
+// Ao sair da conta, o app tira o token do aparelho, para ele parar de receber
+// os alertas desta conta.
+router.delete('/me/push-token', authenticate, async (req, res) => {
+  const { token } = z.object({ token: z.string().trim().min(20).max(4096) }).parse(req.body);
+  await req.db.collection('usuarios').updateOne({ _id: req.userId }, { $pull: { pushTokens: token } });
+  return res.status(204).end();
+});
+
 router.post('/forgot-password', async (req, res) => {
   if (!smtpConfigured()) {
     return res.status(503).json({

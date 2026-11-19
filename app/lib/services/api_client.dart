@@ -65,8 +65,8 @@ class ApiClient {
     return _send('PUT', path, body: body);
   }
 
-  Future<void> delete(String path) async {
-    await _send('DELETE', path);
+  Future<void> delete(String path, {Object? body}) async {
+    await _send('DELETE', path, body: body);
   }
 
   Future<Object?> _send(
