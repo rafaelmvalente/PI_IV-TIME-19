@@ -1,3 +1,7 @@
+// Caio Ávila Marchi - 25008101
+// Data: 28/10/2026
+// Descrição: Testes da sessão do usuário (login, propriedade e preferências).
+
 import 'package:app/models/coordenada.dart';
 import 'package:app/models/preferencias_alerta.dart';
 import 'package:app/models/propriedade.dart';

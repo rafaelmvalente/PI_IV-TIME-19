@@ -1,3 +1,4 @@
+// Caique Vasconcelos Naimi - 25004208
 // Data: 11/11/2026
 // Descrição: Valida que o app abre direto no dashboard quando há login salvo.
 
