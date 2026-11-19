@@ -76,7 +76,7 @@ A tela inicial apresenta:
 - Backend: Node.js (API REST)
 - Servidor: Java 21 puro, com threads e sockets (validação de telefone, em `servidor-java/`)
 - Banco de dados: MongoDB (usuários, propriedades, alertas, tabela de risco por cultura, cache do clima e leituras diárias de chuva)
-- Testes automatizados: `node --test` (backend) e `flutter test` (app)
+- Testes automatizados: JUnit 5, Mockito
 - Integrações: Open-Meteo (clima), Firebase Cloud Messaging (push), Twilio (SMS) e SMTP (e-mail de recuperação de senha)
 - Controle de versão: Git, GitHub e GitHub Projects
 - Hospedagem: Render (backend e servidor Java, com Docker) e MongoDB Atlas (banco)
