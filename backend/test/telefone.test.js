@@ -8,6 +8,9 @@ import { ObjectId } from 'mongodb';
 
 const jwtSecret = 'test-secret-with-at-least-thirty-two-characters';
 process.env.JWT_SECRET = jwtSecret;
+// Este teste é da rota; o servidor Java tem os testes dele. Vazio aqui, o .env
+// de quem roda não liga o validador (o dotenv não sobrescreve o que já existe).
+process.env.JAVA_VALIDADOR_CLASSPATH = '';
 
 const { createApp } = await import('../src/app.js');
 
