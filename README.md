@@ -153,7 +153,7 @@ cd backend && npm test
 cd app && flutter test
 ```
 
-Os testes do backend usam um banco falso em memória e não precisam de MongoDB nem de internet. Se o `.env` tiver `JAVA_VALIDADOR_CLASSPATH`, o servidor Java precisa estar ligado para o teste de telefone passar.
+Os testes do backend usam um banco falso em memória e não precisam de MongoDB nem de internet.
 
 ### Alerta de demonstração
 
