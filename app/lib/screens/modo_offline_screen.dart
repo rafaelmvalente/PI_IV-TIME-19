@@ -1,7 +1,8 @@
 // Vinicius Santuci Virgolino - 25000294
 // Data: 28/10/2026
-// Descrição: Tela 10 do relatório — avisa que o aparelho está sem internet e
-// que os alertas críticos continuarão chegando por SMS. Usa a imagem
+// Descrição: Tela 10 do relatório — avisa que o aparelho está sem internet,
+// que os últimos alertas continuam salvos e que os novos chegam por
+// notificação quando a internet voltar. Usa a imagem
 // offline_fundo.jpg como fundo e o botão "Entendi" fecha a tela. O
 // AvisoModoOffline abre esta tela sozinho quando a conexão cai.
 
@@ -11,7 +12,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/armazenamento_local_service.dart';
-import '../session/sessao.dart';
 import '../theme/app_colors.dart';
 
 const _caminhoFundo = 'assets/images/offline_fundo.jpg';
@@ -86,18 +86,9 @@ class _AvisoModoOfflineState extends State<AvisoModoOffline> {
 
     if (_avisoAberto) return;
     _avisoAberto = true;
-    // Lê a preferência de SMS da sessão. Sem sessão (ex.: testes), considera
-    // o SMS ligado.
-    final sessao = context
-        .getInheritedWidgetOfExactType<SessaoScope>()
-        ?.notifier;
-    final smsAtivo = sessao?.preferencias.sms ?? true;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) =>
-            ModoOfflineScreen(smsAtivo: smsAtivo, telefone: sessao?.telefone),
-      ),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ModoOfflineScreen()));
     // Chega aqui quando o aviso fecha ("Entendi", voltar ou conexão voltou).
     _avisoAberto = false;
   }
@@ -113,48 +104,27 @@ class _AvisoModoOfflineState extends State<AvisoModoOffline> {
 }
 
 class ModoOfflineScreen extends StatelessWidget {
-  const ModoOfflineScreen({
-    super.key,
-    this.semConexao = true,
-    this.smsAtivo = true,
-    this.telefone,
-  });
+  const ModoOfflineScreen({super.key, this.semConexao = true});
 
   // true: aberta pelo AvisoModoOffline, porque a internet caiu.
   // false: aberta pelo Perfil só para explicar como funciona sem internet.
   final bool semConexao;
 
-  // Preferência de SMS do produtor (PreferenciasAlerta.sms).
-  final bool smsAtivo;
-
-  // Número que recebe os SMS (null quando a conta ainda não tem telefone).
-  final String? telefone;
-
   String get _titulo =>
       semConexao ? 'Modo offline ativado' : 'Como funciona sem internet';
 
-  String get _texto {
-    final consequencia = !smsAtivo
-        ? 'novos alertas só chegarão quando a internet voltar.'
-        : telefone == null
-        ? 'os alertas críticos chegarão por SMS depois que você cadastrar seu telefone no Perfil.'
-        : 'os alertas críticos continuarão chegando por SMS no número $telefone.';
-    if (semConexao) {
-      // Primeira letra maiúscula, porque aqui começa uma frase nova.
-      return 'Você está sem conexão com a internet.\n'
-          '${consequencia[0].toUpperCase()}${consequencia.substring(1)}';
-    }
-    return 'Quando você ficar sem conexão com a internet, $consequencia';
-  }
+  String get _texto => semConexao
+      ? 'Você está sem conexão com a internet.\n'
+            'Os alertas chegam por notificação quando a internet voltar.'
+      : 'Quando você ficar sem conexão com a internet, os alertas chegam '
+            'por notificação quando ela voltar.';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(
-            child: _buildFundo(),
-          ),
+          Positioned.fill(child: _buildFundo()),
           // Escurece o topo da imagem para o texto branco ficar legível.
           Positioned.fill(
             child: DecoratedBox(
@@ -258,27 +228,37 @@ class ModoOfflineScreen extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const _IconeSms(),
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFD3EADB),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.history,
+                    size: 30,
+                    color: AppColors.verde,
+                  ),
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        smsAtivo ? 'Alertas por SMS' : 'SMS desligado',
-                        style: const TextStyle(
+                      const Text(
+                        'Últimos alertas salvos',
+                        style: TextStyle(
                           color: AppColors.textoEscuro,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        smsAtivo
-                            ? 'Você receberá apenas os alertas mais importantes.'
-                            : 'Ative o SMS no Perfil para receber os alertas '
-                                'críticos mesmo sem internet.',
-                        style: const TextStyle(
+                      const Text(
+                        'Você continua vendo os alertas e o clima da última '
+                        'atualização.',
+                        style: TextStyle(
                           color: AppColors.textoSecundario,
                           fontSize: 14,
                           height: 1.4,
@@ -363,40 +343,6 @@ class _SinalSemInternet extends StatelessWidget {
                   color: AppColors.erro,
                   borderRadius: BorderRadius.circular(2),
                 ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Balão de conversa verde com "SMS" escrito dentro.
-class _IconeSms extends StatelessWidget {
-  const _IconeSms();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 52,
-      height: 52,
-      decoration: const BoxDecoration(
-        color: Color(0xFFD3EADB),
-        shape: BoxShape.circle,
-      ),
-      child: const Stack(
-        alignment: Alignment.center,
-        children: [
-          Icon(Icons.chat_bubble, size: 34, color: AppColors.verde),
-          Padding(
-            padding: EdgeInsets.only(bottom: 4),
-            child: Text(
-              'SMS',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
               ),
             ),
           ),

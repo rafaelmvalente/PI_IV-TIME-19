@@ -30,7 +30,7 @@ function alert(overrides = {}) {
 function user(overrides = {}) {
   return {
     pushTokens: ['token-aparelho-1-com-mais-de-vinte-caracteres'],
-    preferencias: { texto: true, voz: false, sms: false },
+    preferencias: { texto: true, voz: false },
     ...overrides,
   };
 }
@@ -106,9 +106,9 @@ test('avisa uma única vez e marca notificadoEm depois de enviar', async () => {
   assert.equal(db.alerts[0].notificacoes.push.status, 'enviado');
 });
 
-test('respeita a preferência: quem escolheu só SMS não recebe push', async () => {
+test('respeita a preferência: quem desligou texto e voz não recebe push', async () => {
   const db = fakeDb({
-    usuario: user({ preferencias: { texto: false, voz: false, sms: true } }),
+    usuario: user({ preferencias: { texto: false, voz: false } }),
     alerts: [alert()],
   });
   let chamadas = 0;
@@ -125,7 +125,7 @@ test('respeita a preferência: quem escolheu só SMS não recebe push', async ()
 
 test('quem escolheu só voz também recebe a notificação', async () => {
   const db = fakeDb({
-    usuario: user({ preferencias: { texto: false, voz: true, sms: false } }),
+    usuario: user({ preferencias: { texto: false, voz: true } }),
     alerts: [alert()],
   });
   const result = await notifyAlertsByPush(db, property, [alert()], {

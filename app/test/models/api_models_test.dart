@@ -24,7 +24,6 @@ void main() {
     expect(user.toJson()['preferencias'], {
       'texto': true,
       'voz': true,
-      'sms': false,
     });
     expect(
       PreferenciasAlerta.fromJson(user.preferencias.toJson()).algumAtivo,

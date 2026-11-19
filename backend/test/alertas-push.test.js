@@ -33,12 +33,11 @@ function previsaoComMinima(minima) {
   });
 }
 
-// Só o push é de verdade nestes testes: clima, histórico e SMS são simulados.
+// Só o push é de verdade nestes testes: clima e histórico são simulados.
 function opcoes(minima, enviarPush) {
   return {
     obterPrevisao: previsaoComMinima(minima),
     obterHistorico: async () => [],
-    notificar: async () => {},
     enviarPush,
   };
 }

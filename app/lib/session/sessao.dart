@@ -8,7 +8,7 @@
 //   final sessao = SessaoScope.of(context);
 //   sessao.login          // e-mail ou telefone de quem entrou
 //   sessao.propriedade    // Propriedade atual (pode ser null)
-//   sessao.preferencias   // texto / voz / SMS
+//   sessao.preferencias   // texto / voz
 // Data: 11/11/2026
 // Descrição: Mantém na sessão os dados retornados pela API autenticada.
 // Data: 18/11/2026
@@ -58,11 +58,6 @@ class SessaoController extends ChangeNotifier {
   /// Chamar quando a propriedade for cadastrada ou editada.
   void definirPropriedade(Propriedade propriedade) {
     _propriedade = propriedade;
-    notifyListeners();
-  }
-
-  void definirTelefone(String telefone) {
-    _telefone = telefone;
     notifyListeners();
   }
 
