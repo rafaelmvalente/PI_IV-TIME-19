@@ -135,4 +135,37 @@ void main() {
       await voz.parar();
     });
   });
+
+  group('escolherVoz', () {
+    test('prefere a voz neural do idioma', () {
+      final voz = escolherVoz([
+        {'name': 'Microsoft Maria - Portuguese (Brazil)', 'locale': 'pt-BR'},
+        {'name': 'Microsoft Guy Online (Natural) - English', 'locale': 'en-US'},
+        {
+          'name': 'Microsoft Francisca Online (Natural) - Portuguese (Brazil)',
+          'locale': 'pt-BR',
+        },
+        {'name': 'Google português do Brasil', 'locale': 'pt-BR'},
+      ], 'pt-BR');
+
+      expect(voz?['name'], contains('Francisca'));
+    });
+
+    test('aceita locale com sublinhado e cai na voz comum', () {
+      final voz = escolherVoz([
+        {'name': 'pt-br-x-afs-local', 'locale': 'pt_BR'},
+      ], 'pt-BR');
+
+      expect(voz?['name'], 'pt-br-x-afs-local');
+    });
+
+    test('sem voz do idioma devolve null', () {
+      expect(
+        escolherVoz([
+          {'name': 'Samantha', 'locale': 'en-US'},
+        ], 'pt-BR'),
+        isNull,
+      );
+    });
+  });
 }

@@ -1,4 +1,4 @@
-// Caique Vasconcelos Naimi - 25004208
+// Rodrigo Gabi - 25001714
 // Data: 28/10/2026
 // Descrição: Estágio da lavoura, usado para classificar o nível de risco do
 // alerta (README: plantio, crescimento, floração, colheita).
