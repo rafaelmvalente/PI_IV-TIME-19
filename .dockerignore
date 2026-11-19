@@ -3,10 +3,15 @@
 # Descrição: Envia ao Docker só o backend e o servidor Java. Fica de fora o
 # .env (senhas), o node_modules (é instalado de novo) e o app Flutter.
 
+# "*" ignora tudo; o "!" abre exceção só para as duas pastas que o
+# Dockerfile usa.
 *
 !backend/
 !servidor-java/
 
+# Mesmo dentro das pastas liberadas, ficam de fora: as dependências (o
+# npm ci instala de novo), as senhas, os testes e os .class compilados
+# no computador (o Dockerfile compila o Java de novo).
 backend/node_modules
 backend/.env
 backend/test
