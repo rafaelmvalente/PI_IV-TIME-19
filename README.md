@@ -77,7 +77,7 @@ A tela inicial apresenta:
 - Servidor: Java 21 puro, com threads e sockets (validação de telefone, em `servidor-java/`)
 - Banco de dados: MongoDB (usuários, propriedades, alertas, tabela de risco por cultura, cache do clima e leituras diárias de chuva)
 - Testes automatizados: JUnit 5, Mockito
-- Integrações: Open-Meteo (clima), Firebase Cloud Messaging (push)
+- Integrações: Open-Meteo (clima), Firebase Cloud Messaging (push), Twilio (SMS) e SMTP (e-mail de recuperação de senha)
 - Controle de versão: Git, GitHub e GitHub Projects
 - Hospedagem: Render (backend e servidor Java, com Docker) e MongoDB Atlas (banco)
 
@@ -106,6 +106,61 @@ flutter run -d chrome --dart-define=API_URL=https://pi-iv-time-19.onrender.com/a
 Como funciona a publicação:
 
 - O `Dockerfile` (na raiz) monta o Node e o Java no mesmo serviço: compila o `servidor-java/`, sobe o servidor Java na porta 3001 (interna) e depois o backend na porta pública
-- As senhas ficam nas variáveis de ambiente do Render, fora do Git: `MONGODB_URI`, `MONGODB_DATABASE`, `JWT_SECRET`, `CORS_ORIGIN` e `COLETA_INTERVALO_MINUTOS`
+- As senhas ficam nas variáveis de ambiente do Render, fora do Git: `MONGODB_URI`, `MONGODB_DATABASE`, `JWT_SECRET`, `CORS_ORIGIN` e `COLETA_INTERVALO_MINUTOS`. Os recursos opcionais só funcionam com as suas variáveis: recuperação de senha (`SMTP_*` e `APP_RESET_PASSWORD_URL`), push (`FIREBASE_SERVICE_ACCOUNT_BASE64`) e SMS (`TWILIO_*`)
 - O plano gratuito do Render desliga o serviço depois de 15 minutos sem acesso. Uma tarefa no cron-job.org acessa o `/api/v1/health` a cada 10 minutos para mantê-lo ligado e a coleta agendada rodando
 - **O Render não atualiza sozinho:** depois de um merge no `main` que mexa no backend ou no servidor Java, é preciso entrar no Render e clicar em **Manual Deploy → Deploy latest commit**
+
+## Rodar no computador
+
+### Backend (Node.js)
+
+Precisa do Node.js 20 ou mais novo e de um MongoDB (local ou Atlas) com os scripts de `banco-de-dados/` já rodados.
+
+```
+cd backend
+cp .env.example .env    # preencha MONGODB_URI e JWT_SECRET (mínimo 32 caracteres)
+npm install
+npm run dev             # API em http://localhost:3000/api/v1
+```
+
+Sem as variáveis de SMTP, Firebase, Twilio ou do servidor Java, o backend sobe normalmente e só o recurso correspondente fica desligado. A recuperação de senha responde 503 até o SMTP ser configurado (com Gmail: `smtp.gmail.com`, porta 587 e uma senha de app).
+
+### Servidor Java (validação de telefone)
+
+Precisa do Java 21. O servidor usa a porta 3001.
+
+```
+cd servidor-java/Servidor && javac *.java && java Servidor
+cd servidor-java/Cliente && javac *.java && java Cliente
+```
+
+O `Cliente` é interativo e serve para testar. O backend usa o `ValidaTelefone` (`java ValidaTelefone localhost 3001 "(19) 99999-8888"`) quando `JAVA_VALIDADOR_CLASSPATH` está preenchido no `.env`. Para desligar o servidor, digite `desativar` no terminal dele.
+
+### Aplicativo (Flutter)
+
+```
+cd app
+flutter pub get
+flutter run -d chrome --dart-define=API_URL=http://localhost:3000/api/v1
+```
+
+No emulador Android, use `http://10.0.2.2:3000/api/v1`. O push só funciona no celular e precisa também de `--dart-define` com `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID` e `FIREBASE_PROJECT_ID`; sem eles, o app roda sem notificações.
+
+### Testes
+
+```
+cd backend && npm test
+cd app && flutter test
+```
+
+Os testes do backend usam um banco falso em memória e não precisam de MongoDB nem de internet. Se o `.env` tiver `JAVA_VALIDADOR_CLASSPATH`, o servidor Java precisa estar ligado para o teste de telefone passar.
+
+### Alerta de demonstração
+
+Para a apresentação, quando o clima do dia não gera nenhum alerta, o script cria uma geada (alto) para hoje e uma chuva forte (médio) para amanhã nas propriedades da conta:
+
+```
+cd backend
+npm run demo:alerta -- email-da-conta@exemplo.com
+npm run demo:alerta -- email-da-conta@exemplo.com --remover
+```
